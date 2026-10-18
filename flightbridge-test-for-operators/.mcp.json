@@ -2,7 +2,7 @@
   "mcpServers": {
     "flightbridge-test": {
       "type": "http",
-      "url": "https://poc-api-test.flightbridge.com/mcp"
+      "url": "https://testagent.flightbridge.com/mcp"
     }
   }
 }

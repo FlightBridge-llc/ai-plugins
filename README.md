@@ -21,7 +21,7 @@ Install the one for your business. The connector starts with the plugin; sign in
 
 ## Claude on the web or Desktop
 
-Add this repository as a plugin marketplace, or upload a plugin, then add the connector the plugin lists and sign in. Step-by-step setup for every assistant: https://poc-developer.flightbridge.com/connect
+Add this repository as a plugin marketplace, or upload a plugin, then add the connector the plugin lists and sign in. Step-by-step setup for every assistant: https://developer.flightbridge.com/connect
 
 Have only one FlightBridge environment switched on in a conversation: the test and production connectors have the same tool names.
 

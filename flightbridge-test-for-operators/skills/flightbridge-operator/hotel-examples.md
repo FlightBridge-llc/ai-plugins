@@ -327,5 +327,6 @@ behind FlightBridge.
 > "FlightBridge's rate is set up at this hotel, but the hotel returned no rooms on it for these dates -
 > negotiated rates are not guaranteed to be available unless the agreement is last-room-availability."
 
-Said only because the user asked. The rows themselves were presented as what they are: the ABC rate
-is FlightBridge's consortia rate, open to every customer, with its own cancellation terms read out.
+Said only because the user asked. The rows themselves were presented as what they are: the tier-`other`
+rate is one of FlightBridge's negotiated rates, open to every customer, with its own cancellation terms
+read out.

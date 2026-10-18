@@ -1,13 +1,13 @@
 {
   "name": "flightbridge-test-for-operators",
   "displayName": "FlightBridge Test for Aircraft Operators",
-  "version": "0.1.20261016",
+  "version": "0.1.20261018",
   "description": "For flight departments, charter schedulers and Trip Managers: plan trips and legs in a sentence, and book crew hotel rooms and rental cars through your FlightBridge account.",
   "author": {
     "name": "FlightBridge",
-    "url": "https://poc-developer.flightbridge.com"
+    "url": "https://developer.flightbridge.com"
   },
-  "homepage": "https://poc-developer.flightbridge.com/connect",
+  "homepage": "https://developer.flightbridge.com/connect",
   "repository": "https://github.com/FlightBridge-llc/ai-plugins",
   "license": "LicenseRef-FlightBridge-Proprietary",
   "keywords": [

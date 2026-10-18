@@ -97,7 +97,7 @@ checklist item flips to Not Started on its own. Unit defaults to Gal.
 
 ### Travelers for an FBO — always inside a customer
 A traveler is never just "Bob Smith" to an FBO: he is Bob Smith **at ACME Corporation**, and the
-Bob Smith at ABC Company is a different person with a different profile and loyalty numbers.
+Bob Smith at XYZ Aviation is a different person with a different profile and loyalty numbers.
 - **Pick from the manifest first.** `fbo_get_reservation` returns `travelers.arrival` /
   `travelers.departure` with `travelerId`; a driver who is on the reservation needs no search.
 - **`fbo_search_travelers`** takes the customer — pass `reservationId` (the server uses that
@@ -210,7 +210,7 @@ treat it with the same weight as a booking.
 - `fboCsaId` on every FBO ad-hoc booking — and only a row with `isYours: true`.
 - `travelerId` only when it came from a lookup that returned it; otherwise omit — and only from
   the manifest or a search scoped to THIS reservation's customer. Bob Smith at ACME is not Bob
-  Smith at ABC; a same-named traveler under another customer is the wrong person.
+  Smith at XYZ Aviation; a same-named traveler under another customer is the wrong person.
 - Codes (`vehicleCategory`, `vehicleSize`) echoed verbatim from the shop row.
 - A `WRONG_PERSONA_TOOL` or `NOT_FBO_USER` refusal is a routing correction, never "no data": call
   the `useInstead` tool and carry on.

@@ -10,8 +10,13 @@ the work, and they are listed only for a user with the Trip Manager role:
 | `operator_update_leg` | change one leg (times, airports, aircraft, FBOs, crew and passengers, the trip's name) |
 | `operator_cancel_leg` | cancel one leg |
 | `operator_cancel_trip` | cancel the whole trip (this is also the undo for a create) |
+| `operator_notify_fbo` | tell an FBO the aircraft is coming (FlightBridge's Notify FBO), from a leg or ad hoc |
+| `operator_update_fbo_notification` | change it and re-send it (the FBO sees "Changed") |
+| `operator_cancel_fbo_notification` | send the FBO a cancellation |
 
-`operator_search_trips { tripId }` reads one whole trip back in the same shape. The server's own
+`operator_search_trips { tripId }` reads one whole trip back in the same shape, and
+`operator_get_fbo_notifications { tripId }` (any operator user) lists what each FBO was told and whether
+it confirmed. The server's own
 `instructions` carry the operating rules; this skill adds the judgment.
 
 If the five tools are **not in your list**, the user does not have the Trip Manager role. Say so
@@ -166,10 +171,61 @@ Then call again with `confirm: true` and `ordersAction`:
 - **`leave`** - the leg is cancelled and the orders stay live; FlightBridge flags each "Leg was
   cancelled." Say the orders are still booked.
 
-FBO, catering and other orders cannot be cancelled or moved here: `ORDERS_MAY_NEED_ATTENTION` names
-them - they are cancelled in FlightBridge, or the user chooses `leave`. Cancelling the last live leg
+An **FBO notification** on the leg is listed among the orders ("FBO notification to Acme Aviation
+(Requested)"): `cancel` sends that FBO a cancellation notice; it cannot be moved. Catering and other
+orders cannot be cancelled or moved here: `ORDERS_MAY_NEED_ATTENTION` names them - they are cancelled
+in FlightBridge, or the user chooses `leave`. Cancelling the last live leg
 cancels the trip. A cancelled leg or trip cannot be reactivated from here; re-add a leg with
 `operator_add_leg`.
+
+## Notify the FBO
+
+An FBO notification is FlightBridge's **Notify FBO** order: one per leg, FBO and direction, e-mailed to
+the FBO and put on its FlightBridge board, where the FBO confirms it. It carries the aircraft, the
+times from the leg, the services wanted and the notes.
+
+**When to notify.** When the user names an FBO or says "let them know we're coming", "tell Acme",
+"notify the FBO" - while creating a trip, adding a leg, or later. Do not notify unasked.
+
+- **Trip context:** `operator_notify_fbo { legId }` - the leg's arrival FBO by default; pass
+  `arrivalOrDeparture: "departure"` for the departure. A leg with no FBO gets the airport's only FBO
+  (`defaultsApplied` says so) or answers `needs: fboCsaId` with the choices - ask which. A based
+  aircraft (the airport is its home base) is notified for its departure, as FlightBridge does it. One
+  notification covers the whole stay: an arrival runs to the next departure from the same FBO.
+- **Ad hoc - one call:** *"N1234 into MDT Tuesday 2 PM, out Wednesday 10 AM, fuel, tell Acme"* =
+  `operator_notify_fbo { tail: "N1234", airportCode: "MDT", arrival: { date, time: "14:00" },
+  departure: { date, time: "10:00" }, fuel: true }`. FlightBridge creates the trip
+  (`adHocTripCreated`) and sends the notification. Times are local at the airport; a date with no time
+  becomes 12:00, FlightBridge's own default for this flow - say so.
+- **Services:** `fuel` (with `fuelType` and `quantity` when given), `hangar`, `quickTurn`,
+  `otherServices` by the FBO's own names ("GPU", "Lav"), `pullUpMinutesBeforeDeparture` (0-180),
+  `notes`. They become items on the FBO's FlightBridge checklist; one the FBO does not list comes back
+  in `warnings` (`SERVICE_NOT_OFFERED`, with what it does list) - offer to put it in the notes.
+- **Sending:** it sends by default; `send: false` only when the user wants a draft.
+
+**Read back in one sentence**, from `summary`: *"Acme Aviation notified: arriving Tue 2:00 PM, leaving Wed
+10:00 AM; fuel and hangar requested - they'll confirm."* The FBO confirms in FlightBridge;
+`operator_get_fbo_notifications` shows `fboResponse` (confirmed or declined, and by whom) later.
+
+**After a change.** When a leg's time moves (`operator_update_leg`) and the leg has an FBO
+notification, offer once: *"Want me to update Acme Aviation with the new time?"* - then
+`operator_update_fbo_notification { serviceOrderId, arrivalLocal | departureLocal }` moves the time
+and re-sends in one call (the FBO sees "Changed"). Adding a service: `{ serviceOrderId, hangar: true }`.
+`resend: false` saves without sending (`changesNotSent: true`) - only when the user asks.
+
+**Cancelling.** A leg or trip cancel lists the notification (above). On its own:
+`operator_cancel_fbo_notification { serviceOrderId }` - a draft is discarded at once; a sent one answers
+`CONFIRMATION_REQUIRED` with what the FBO was told: ask, then `confirm: true`, and say the FBO gets a
+cancellation notice.
+
+| answer | say / do |
+|---|---|
+| `FBO_ORDER_EXISTS` | this leg already has a notification for that FBO (`serviceOrderId`): change or re-send it with `operator_update_fbo_notification` |
+| `FBO_NOT_ON_LEG` | the leg has a different FBO; change the leg's FBO with `operator_update_leg`, then notify |
+| `FBO_NOT_AT_AIRPORT` / `NO_FBO_AT_AIRPORT` | that FBO is not listed there; offer `options` (or `list_fbos`) |
+| `FBO_NO_EMAIL` | FlightBridge has no e-mail for that FBO; it is added in FlightBridge, or the user calls them |
+| `FBO_NOTICE_IN_FLIGHT` | FlightBridge is still sending the last notice; try again in about a minute |
+| `tripSharing` | read it, never act on it: a notification sent here is not governed by the company's trip-sharing settings |
 
 ## Refusals and uncertain saves
 

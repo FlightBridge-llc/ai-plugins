@@ -16,13 +16,13 @@ travelerId }` (operator; ad hoc with neither is fine). The reply carries `link` 
 *"Click this link to securely enter the credit card to be used for this booking, or let me know an email address if you want me to email this link to the traveler or other arranger."*
 
 and give the link. **Ask for an address only when the user wants the link emailed.** The CSR may take
-the card by phone and enter it on that page themselves. When the user says *"email it to Sherry"*, call
-`card_request_status { requestId, sendTo: { contact: { firstName: "Sherry" } } }` (the same link, no new
-one) - or `request_card { ..., contact: { firstName: "Sherry" } }` when there is no link yet; with an
+the card by phone and enter it on that page themselves. When the user says *"email it to Alex"*, call
+`card_request_status { requestId, sendTo: { contact: { firstName: "Alex" } } }` (the same link, no new
+one) - or `request_card { ..., contact: { firstName: "Alex" } }` when there is no link yet; with an
 address they give, `sendTo: { email }`. `CONTACT_AMBIGUOUS` / `CONTACT_LAST_NAME_REQUIRED` ask one
 question; a failed email still leaves the link working (`emailRefused` says why). Read the `summary`
-back; it says who got it (in a test environment a non-whitelisted address goes to a test inbox
-instead). The page asks for the aircraft's tail number or the traveler's last name (3 attempts), then
+back; it says who got it (in a test environment the email is redirected to FlightBridge's test
+mailbox). The page asks for the aircraft's tail number or the traveler's last name (3 attempts), then
 sends the card straight to FlightBridge's card vault - nobody in the chat sees it. Lost the tab?
 `card_request_status` hands the same link back while it is `ready`, `sent`, `opened` or `verified`.
 Progress, from `statusWords`: "ready" (made, not emailed) / "sent" / "the link was opened" / "identity

@@ -19,7 +19,7 @@ without it.
 
 | the request | read |
 |---|---|
-| create, change or cancel a trip or a leg; the manifest | `trips.md` (worked examples in `trip-examples.md`) |
+| create, change or cancel a trip or a leg; the manifest; notify the FBO | `trips.md` (worked examples in `trip-examples.md`) |
 | a hotel room for the crew: shop, book, change, move to another leg, cancel | `hotels.md` (worked examples in `hotel-examples.md`) |
 | a rental car for a trip or ad hoc | `rentals.md` |
 | a booking needs a card that is not on file, or a question about a card | `card-link.md` |

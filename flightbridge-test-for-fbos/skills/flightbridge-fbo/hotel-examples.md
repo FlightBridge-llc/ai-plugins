@@ -292,7 +292,7 @@ ACME's N1234, MDT reservation 99284):
 > empty), and the message says Bob also has no email.
 > You (one call, nothing asked first): `request_card { reservationId: 99284, travelerId }` (an operator:
 > `request_card { legId, travelerId }`), then: "Click this link to securely enter the credit card to be used for this booking, or let me know an email address if you want me to email this link to the traveler or other arranger." and the `link`.
-> Rep: "Email it to Sherry." -> `card_request_status { requestId, sendTo: { contact: { firstName: "Sherry" } } }`
+> Rep: "Email it to Alex." -> `card_request_status { requestId, sendTo: { contact: { firstName: "Alex" } } }`
 > - the same link, emailed; read the `summary` (who got it, masked).
 > Rep, later: "Is Bob's card in yet?" -> `card_request_status { reservationId: 99284 }`: say its `statusWords`
 > ("opened" / "identity confirmed" / "card saved"); when it is completed, book with no `vaultCardId`.
@@ -309,5 +309,6 @@ behind FlightBridge.
 > "FlightBridge's rate is set up at this hotel, but the hotel returned no rooms on it for these dates -
 > negotiated rates are not guaranteed to be available unless the agreement is last-room-availability."
 
-Said only because the user asked. The rows themselves were presented as what they are: the ABC rate
-is FlightBridge's consortia rate, open to every customer, with its own cancellation terms read out.
+Said only because the user asked. The rows themselves were presented as what they are: the tier-`other`
+rate is one of FlightBridge's negotiated rates, open to every customer, with its own cancellation terms
+read out.

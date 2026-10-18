@@ -117,3 +117,25 @@ When FlightBridge is slow to confirm a save:
 
 The same call again with the SAME `clientRequestId` answered `created`, `replayed: true`, `savedAfterWait: true`,
 trip 0000145 - one trip, not two.
+
+## 12. Notify the FBO
+
+**a. From a leg, while planning.** "...and let Acme know we're coming, we'll want fuel." after a trip is created:
+`operator_notify_fbo { legId: <the CLT arrival leg>, fuel: true }`. Read back the `summary` in one sentence:
+> Acme Aviation notified: arriving Wed Oct 14 12:42 PM, leaving Thu Oct 15 2:00 PM; fuel requested. FlightBridge e-mails
+> Acme Aviation within about a minute and puts the visit on their FlightBridge board; they confirm it themselves.
+
+**b. Ad hoc, one sentence, one call.** "N1234 into MDT Tuesday 2 PM, out Wednesday 10 AM, fuel and a hangar, tell Acme":
+`operator_notify_fbo { tail: "N1234", airportCode: "MDT", arrival: { date: "<Tue>", time: "14:00" }, departure: { date: "<Wed>",
+time: "10:00" }, fuel: true, hangar: true }` -> `adHocTripCreated: true`, `tripCreated.tripNumber`, `sent: true`. Never
+create the trip first with operator_create_trip for this.
+
+**c. A time change.** "Push the MDT arrival to 4 PM." -> the leg moves and the FBO is told in one call:
+`operator_update_fbo_notification { serviceOrderId, arrivalLocal: "<Tue>T16:00" }` -> `resent: true`, `changes:
+["arrival time"]`; say "Acme Aviation has the new time (they see it as Changed)". Adding the hangar later is
+`{ serviceOrderId, hangar: true }`, re-sent the same way.
+
+**d. Cancelling.** "We're not going to MDT after all." With the trip: `operator_cancel_trip` lists the FBO notification
+among the orders; `ordersAction: "cancel"` sends Acme the cancellation. Without the trip:
+`operator_cancel_fbo_notification { serviceOrderId }` -> `CONFIRMATION_REQUIRED` with what Acme was told -> ask ->
+`confirm: true` -> `noticeSent: true`. A draft (`send: false` earlier) is discarded at once, nothing sent.

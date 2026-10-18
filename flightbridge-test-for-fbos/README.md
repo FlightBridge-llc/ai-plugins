@@ -5,7 +5,7 @@ For FBO customer service reps: put visiting aircraft on the schedule, answer rat
 ## Connector
 
 ```
-https://poc-api-test.flightbridge.com/mcp
+https://testagent.flightbridge.com/mcp
 ```
 
 Sign-in is OAuth with your own FlightBridge credentials; the assistant acts as you, inside your existing permissions. Nothing is booked without the rules in the skill: bookings, cancellations and customer emails are recapped and confirmed, card numbers are never typed into the chat, and restricted rates need the user's word that the traveller qualifies.
@@ -21,7 +21,7 @@ Claude Code: the plugin starts the connector itself; sign in when the first tool
 
 Claude on the web or Desktop: add the plugin, then add the connector it lists (FlightBridge Test, the URL above) and sign in. Installing a plugin there does not add its connector for you.
 
-Every assistant, step by step: https://poc-developer.flightbridge.com/connect
+Every assistant, step by step: https://developer.flightbridge.com/connect
 
 ## License
 
