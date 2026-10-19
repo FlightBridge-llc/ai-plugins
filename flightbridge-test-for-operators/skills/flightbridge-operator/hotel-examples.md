@@ -64,10 +64,23 @@ the rest - no continuation:
 
 > "Three hotels have rooms for Jan 10-12: the Residence Inn at $275.28 a room all in (free to cancel until Jan 9), the
 > Homewood Suites at $337.71 and the Sheraton at $486.18. I can check 12 more if you want - about 12 seconds. Which one, and
-> which card - the Amex ending 2004 or the Visa ending 1111?"
+> which card - the Amex ending 2004, John Doe, or the Visa ending 1111, Jane Doe?"
 
 "Book them both at the Residence Inn, Amex" books the Residence Inn straight away (`confirmedTotal: 275.28`, the per-room
 figure). "Anything cheaper?" or "none of those" is the cue for `shop_hotels { continuationToken: moreHotels.token }`.
+
+**Three rooms, one guest with a card of their own.** The shop's `paymentPreview` shows Bob on his own Visa and Jane and
+Tom with none, so it carries `cardChoice`. Ask its question with the hotel list, before any booking call:
+
+> "... Which hotel? Also, Bob has a card on file, but Jane and Tom don't. How do you want to handle credit cards for
+> everyone? Same card for everyone, or a combination, with or without Bob's card?"
+
+- "Use the company Amex" (a combination that keeps Bob's card): `payment: { vaultCardId: <the Amex> }` - Jane and Tom go on
+  the Amex, Bob stays on his own Visa. The recap names each room's card.
+- "Same card for everyone, the Amex": `payment: { perGuest: [...] }` with all three guests, each with the Amex's
+  `vaultCardId` - all three rooms on the Amex.
+- "Bob's card for everyone": Bob's card can pay for the others only when it is in the wallet (the `cards` entry with the
+  same label); then list all three in `perGuest` with it. Otherwise say so and offer the wallet's cards or the card link.
 
 A late arrival is the mirror case: leg 143896 lands at KDAL at 11:40 PM local (04:40Z the next
 day), and `defaultsApplied` reads *"checkIn 2026-10-21 from the leg's arrival"* — the local day,

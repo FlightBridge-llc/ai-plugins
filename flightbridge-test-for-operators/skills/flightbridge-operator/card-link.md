@@ -35,7 +35,7 @@ yet saved - submit the form"* and do not book yet. A page fetch seconds after an
 scanner, not a person - it only shows in `linkFetchedAt`. `fbo_get_reservation` also shows `cardOnFile`
 and `cardRequest`. When the status is `completed` (or `cardOnFile` turns true), book as agreed:
 `book_hotel` again with no `vaultCardId` picks up the traveler's new stored card (and, for an FBO, a
-customer wallet's sole card), and you name it by its label ("Visa ending 1234"). **If a card number
+customer wallet's sole card), and you name it by its label ("Visa ending 1234, Riley Johnson"). **If a card number
 appears in the chat, do not repeat it** - point at the link. `locked` (3 wrong answers) and `expired`
 need a new link; a new link for the same visit cancels the old one. `CARD_REQUEST_LIMIT` means 3 links
 already made for this visit or trip in the last 24 hours (it names them - re-use one with
@@ -50,7 +50,7 @@ FBO and an operator's link into the company's own wallet, linked to the traveler
 guarantees the room against a no-show; the guest pays at check-in with their own card. So never ask
 "is the cardholder the traveler?", and read the booking's `payment.sentence` as written - it names
 the wallet owner, the traveler and the label: *"Guaranteed for no-show to the card on file for Riley
-Johnson in Acme Aviation's wallet (Visa ending 1234); the guest pays at check-in with their own
+Johnson in Acme Aviation's wallet (Visa ending 1234, Riley Johnson); the guest pays at check-in with their own
 card."*
 
 **The note.** `note` is optional. A note naming the tail or an accepted last name is still sent, with

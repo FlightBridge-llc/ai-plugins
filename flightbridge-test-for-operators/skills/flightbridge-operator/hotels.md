@@ -491,33 +491,49 @@ answer included - carries `paymentStatus`: `known` with `paymentPreview` (`cardO
 by label, each guest's `willUse`, `latestCardRequest` and a one-line `words`, read at that moment), or
 `unknown` - then say nothing about the card until `card_request_status` has answered.
 
-**Ask "which card?" with the hotel choice, not after a refused booking.** A reservation shop and
-`fbo_get_reservation` carry `paymentPreview`: each guest's `defaultCard` (a label, or null), `willUse` (the card the
-booking will take if you name none - their default, else the customer's only wallet card) and the wallet's `cards`
-`[{vaultCardId, label}]`. When it carries a `question` (someone has no default card and the wallet holds several), put that
-question IN THE SAME MESSAGE as the hotel list - *"Brendan and Tony have no default card; ACME's wallet holds the Amex ending
-2004 and the Visa ending 1111. Which hotel, and which card?"* - then book with `payment: { vaultCardId }` (it pays for EVERY
-room in the booking, replacing guests' own default cards - that is what "use the 4912" means), or `payment: { perGuest: [{travelerId, vaultCardId}] }` when the
-user names different cards for different people. When `willUse` is filled for everyone, there is nothing to ask. A card the
-user chooses for a guest with no default is saved as that guest's default by the booking (as the web app's "make
-preferred" does); the summary then says *"Saved American Express ending 2004 as Brendan Johnson's default card for next
-time."* - read it as written, and only when it is there.
+**Ask "which card?" with the hotel choice, not after a refused booking.** A reservation shop, a crew shop with named
+guests and `fbo_get_reservation` carry `paymentPreview`: each guest's `defaultCard` (a label, or null), `willUse` (the card
+the booking will take if you name none - their default, else the customer's only wallet card) and the wallet's `cards`
+`[{vaultCardId, label}]`. When it carries a `question`, put that question IN THE SAME MESSAGE as the hotel list, before
+any booking call. The card rules:
+
+- **Each guest's own default card is the card used**, as an automatic booking would use it. When everyone has their own
+  card there is nothing to ask; the recap before the yes names the card for each room (from `willUse`).
+- **"Use the 4912 card in the wallet"** - `payment: { vaultCardId }` - covers every guest who does **not** have a card of
+  their own. It never replaces a guest's own default card.
+- **Some guests have their own card and some do not** (`cardChoice` is present): say so up front with its `question`,
+  word for word - *"Bob has a card on file, but Jane and Tom don't. How do you want to handle credit cards for everyone?
+  Same card for everyone, or a combination, with or without Bob's card?"* - and book as `cardChoice.howToBook` says:
+  "same card for everyone" is `payment: { perGuest: [...] }` listing **every** guest with that one card (Bob's room
+  included); "a combination" is a card per guest - leave a guest out of `perGuest` to keep their own card, or name
+  `vaultCardId` for everyone without one. If the answer names no card and the wallet holds several, ask which by label.
+- **Nobody has a card:** the `question` asks which wallet card - *"Brendan and Tony have no default card; ACME's wallet holds
+  the Amex ending 2004, John Doe and the Visa ending 1111, Jane Doe. Which hotel, and which card?"* - or, with an empty
+  wallet, send the secure card link ([card-link.md](card-link.md)).
+
+A card the user chooses for a guest with no default is saved as that guest's default by the booking (as the web app's
+"make preferred" does); the summary then says *"Saved American Express ending 2004, John Doe as Brendan Johnson's default
+card for next time."* - read it as written, and only when it is there.
 
 **Payment is by reference only.** Each room is guaranteed to that guest's stored card on file, or
 to a company-wallet card named by `payment.vaultCardId`. **A card number is never typed into this
 conversation** — there is no field for one; if one appears, do not repeat it and point at the secure link. `PAYMENT_METHOD_REQUIRED` means the guest has no card on
-file. **When it carries `walletCards`** - the company wallet's cards, each `{vaultCardId, label}`,
-the label being the wallet's nickname or "<brand> ending <last 4>" - offer them by label: *"Bob has
-no card on file. Use the Amex ending 1234 from the company wallet?"* On a yes, call `book_hotel`
+file. **When it carries `walletCards`** - the company wallet's cards, each `{vaultCardId, label}` - offer them by
+label: *"Bob has no card on file. Use the Amex ending 1234, John Doe from the company wallet?"* On a yes, call `book_hotel`
 again with the same arguments plus `payment: { vaultCardId }` from that entry (the retry reuses the price check the refusal
 already ran - `priceCheck: "reused"` - so it is quicker). The refusal's `message` is the one sentence to say; its
 `guestsWithoutCard` lists everyone without a card, and `guestCards` every guest's card as it stands. A card named with
-`vaultCardId` pays for **every room** in the booking; when another guest would otherwise keep their own card, the message
-says so, so the user chooses between one card for all and a card per guest (`perGuest`) before anything is booked. Read the
-label as it is; never a number beyond it. When two cards would read the same, the labels already tell them apart (the
-wallet nickname, else the expiry, else "card 2 of 3"): ask by that full label. With no `walletCards`, say a card has to be
-added in FlightBridge (the response may carry `walletPage`). If the same refusal says the guest has no email either,
-offer to add the email (above) in the same breath. Read `payment.sentence` back as written.
+`vaultCardId` covers only the guests without a card of their own. When some guests have their own card and others do
+not, the refusal carries `cardChoice` and its `message` is the same up-front question as above ("Bob has a card on file,
+but Jane and Tom don't...") - you should normally have asked it from `paymentPreview` already; book as
+`cardChoice.howToBook` says. With no `walletCards`, say a card has to be added in FlightBridge (the response may carry
+`walletPage`). If the same refusal says the guest has no email either, offer to add the email (above) in the same breath.
+Read `payment.sentence` back as written.
+
+**Card labels.** A wallet card reads *"Visa ending 1111, John Doe"* - the brand, the last four digits and the name on
+the card. When two cards would still read the same, the label adds the expiry (*"Visa ending 1111, John Doe (expires
+03/2028)"*), and if even that ties, *"card 2 of 3"*. Say the label as it is and ask by the full label; never a number
+beyond the last four.
 
 **No card on file, or a card to put on file:** read [card-link.md](card-link.md) beside this file before the next call. It holds
 the secure card link, whose card it is, the note, and the no-card-on-file flow.

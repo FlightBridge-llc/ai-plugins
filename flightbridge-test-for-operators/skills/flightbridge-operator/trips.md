@@ -112,10 +112,7 @@ the user only asked about the trip ("tell me about my CLT trip next week"). Each
 `defaultsApplied` lists every assumption in words; mention the ones the user did not say (the
 departure airport, the estimated arrivals, the trip number). Operators have no company airport, but
 an aircraft may have a home base: when it has one, leg 1 leaves from it and `defaultsApplied` says
-so; ask only when the server answers `needs`. `warnings` with `audience: user` are for the user:
-**relay `AIRCRAFT_TYPE_CLEARED` as written** (saving the trip cleared the aircraft's type in
-FlightBridge - a known FlightBridge defect that is being fixed), say it can be set again on the aircraft's page,
-and offer to note it.
+so; ask only when the server answers `needs`. `warnings` with `audience: user` are for the user: relay them.
 
 **Two aircraft with the same tail.** When `needs: aircraft` lists two records for one
 tail, ask which, and pass the chosen `aircraftId` - never the tail again. FlightBridge saves a trip
