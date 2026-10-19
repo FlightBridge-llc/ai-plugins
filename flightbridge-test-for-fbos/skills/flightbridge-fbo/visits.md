@@ -3,11 +3,15 @@
 ## Reservation for a customer visit (the visit itself, car or room optional)
 "Acme is bringing N123AB in Thursday, they want fuel and a hangar." The deliverable is the
 **reservation** — the visit on the FBO's schedule — and the car, if any, is booked against it
-afterwards by flow A in `rentals.md`. Tools: `fbo_search_reservations`, `fbo_get_reservation`,
+afterwards by flow A in [rentals.md](rentals.md). Tools: `fbo_search_reservations`, `fbo_get_reservation`,
 `fbo_create_reservation`, `fbo_update_reservation`, `fbo_update_checklist`,
 `fbo_cancel_reservation` (cancel AND reinstate), `fbo_discard_reservation`,
 `fbo_archive_reservation`, `fbo_email_reservation` (the customer's confirmation email — preview,
 then confirm) (+ `fbo_search_travelers` / `fbo_create_traveler` / `fbo_update_traveler` for the manifest).
+After a create, change, checklist update, cancel or booking on the visit, end with the reply's
+`links.label` ("See the updated reservation here: <url>"); on a read ("tell me about the N1234
+reservation on Wednesday") end with "Open it in FlightBridge: <url>". Each row of
+`fbo_search_reservations` carries its own `links.reservation`.
 
 ### Intake — plain conversation, one question at a time
 Ask for the **operator** (required) and **at least one date** (required); everything else is
@@ -66,7 +70,7 @@ book, then offer the pull-up time, counts and contact.
      ("recorded as \"Gulfstream G280\", matched to the standard type list") - say the stored type.
    - `cardOnFile: false` on the create (a new customer never has a card) → when a hotel is wanted, call
      `request_card` as soon as the hotel is chosen and say its link line with the link - never a
-     `book_hotel` call you know will fail (`card-link.md`, "No card on file").
+     `book_hotel` call you know will fail ([card-link.md](card-link.md), "No card on file").
    - `POSSIBLE_DUPLICATE` → **read `possibleDuplicates` back** ("there's already a reservation for
      N123AB arriving Thu 09/18 14:00 — is this the same visit?"). Only on a clear "no, a second
      one" send `confirmDuplicate: true`.
@@ -121,7 +125,7 @@ Bob Smith at XYZ Aviation is a different person with a different profile and loy
   of your customers' lists, nothing changed.
 - **`request_card`** returns a **secure link** to put a card on file in the customer's wallet at your
   FBO (for a hotel booking - a car needs no card in FlightBridge); say its `say` line with the `link`. See
-  `card-link.md`; `card_request_status` reads it back (and the link again).
+  [card-link.md](card-link.md); `card_request_status` reads it back (and the link again).
   Nothing is emailed unless the user asks: `contact` (someone on file) or `email` on the request, or
   `card_request_status { sendTo }` later. The CSR may take the card by phone and enter it on the page
   (tick "entered on behalf of the cardholder"). Pass the traveler (`travelerId`) - the card is linked to

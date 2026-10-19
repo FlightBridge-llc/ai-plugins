@@ -10,7 +10,7 @@
       "name": "flightbridge-test-for-fbos",
       "source": "./flightbridge-test-for-fbos",
       "description": "For FBO customer service reps: put visiting aircraft on the schedule, answer rate questions from your location's rate card, and book hotel rooms and rental cars for visiting crews through your FlightBridge account.",
-      "version": "0.1.20261018",
+      "version": "0.1.20261019",
       "category": "travel",
       "keywords": [
         "fbo",
@@ -25,7 +25,7 @@
       "name": "flightbridge-test-for-operators",
       "source": "./flightbridge-test-for-operators",
       "description": "For flight departments, charter schedulers and Trip Managers: plan trips and legs in a sentence, and book crew hotel rooms and rental cars through your FlightBridge account.",
-      "version": "0.1.20261018",
+      "version": "0.1.20261019",
       "category": "travel",
       "keywords": [
         "aviation",

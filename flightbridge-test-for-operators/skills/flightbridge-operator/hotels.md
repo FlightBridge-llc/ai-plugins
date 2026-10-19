@@ -324,6 +324,11 @@ has said the traveller qualifies** and you pass `eligibleFor: ["government" | "m
 Only the user's words count — for this traveller, in this conversation. Never infer eligibility
 from a title, a tail number or an earlier trip.
 
+**Hotel links.** Every hotel row carries `links.hotel` (the property's page in FlightBridge). Do not print
+one per row; when the user asks about a hotel or picks one, add "Hotel details in FlightBridge: <url>" with
+that row's `links.hotel.url`. After `book_hotel`, end with the reply's `links.label` (the trip or the
+visit), as `_core` says.
+
 ## Step 5 — one property in detail, and re-pricing
 
 **Every row of a normal shop is already priced, all in**: `ratesLoadedFor` equals `hotelCount` and
@@ -491,8 +496,8 @@ by label, each guest's `willUse`, `latestCardRequest` and a one-line `words`, re
 booking will take if you name none - their default, else the customer's only wallet card) and the wallet's `cards`
 `[{vaultCardId, label}]`. When it carries a `question` (someone has no default card and the wallet holds several), put that
 question IN THE SAME MESSAGE as the hotel list - *"Brendan and Tony have no default card; ACME's wallet holds the Amex ending
-2004 and the Visa ending 1111. Which hotel, and which card?"* - then book with `payment: { vaultCardId }` (it covers every
-guest without a default; a guest WITH a default keeps it), or `payment: { perGuest: [{travelerId, vaultCardId}] }` when the
+2004 and the Visa ending 1111. Which hotel, and which card?"* - then book with `payment: { vaultCardId }` (it pays for EVERY
+room in the booking, replacing guests' own default cards - that is what "use the 4912" means), or `payment: { perGuest: [{travelerId, vaultCardId}] }` when the
 user names different cards for different people. When `willUse` is filled for everyone, there is nothing to ask. A card the
 user chooses for a guest with no default is saved as that guest's default by the booking (as the web app's "make
 preferred" does); the summary then says *"Saved American Express ending 2004 as Brendan Johnson's default card for next
@@ -506,13 +511,21 @@ the label being the wallet's nickname or "<brand> ending <last 4>" - offer them 
 no card on file. Use the Amex ending 1234 from the company wallet?"* On a yes, call `book_hotel`
 again with the same arguments plus `payment: { vaultCardId }` from that entry (the retry reuses the price check the refusal
 already ran - `priceCheck: "reused"` - so it is quicker). The refusal's `message` is the one sentence to say; its
-`guestsWithoutCard` lists everyone without a card. Read the label as
-it is; never a number beyond it. With no `walletCards`, say a card has to be added in FlightBridge
-(the response may carry `walletPage`). If the same refusal says the guest has no email either,
+`guestsWithoutCard` lists everyone without a card, and `guestCards` every guest's card as it stands. A card named with
+`vaultCardId` pays for **every room** in the booking; when another guest would otherwise keep their own card, the message
+says so, so the user chooses between one card for all and a card per guest (`perGuest`) before anything is booked. Read the
+label as it is; never a number beyond it. When two cards would read the same, the labels already tell them apart (the
+wallet nickname, else the expiry, else "card 2 of 3"): ask by that full label. With no `walletCards`, say a card has to be
+added in FlightBridge (the response may carry `walletPage`). If the same refusal says the guest has no email either,
 offer to add the email (above) in the same breath. Read `payment.sentence` back as written.
 
-**No card on file, or a card to put on file:** read `card-link.md` beside this file before the next call. It holds
+**No card on file, or a card to put on file:** read [card-link.md](card-link.md) beside this file before the next call. It holds
 the secure card link, whose card it is, the note, and the no-card-on-file flow.
+
+**`RE_RATED` comes first.** When the booking's `warnings` hold `RE_RATED` (`sayFirst: true`), FlightBridge stored a
+different total than the one the user approved: say its `message` before anything else - *"FlightBridge stored $160.38
+for each room, not the $152.13 you approved; cancellation is still free until 6:00 PM EDT on Oct 21."* - and offer to
+cancel while it is free. The `summary` already starts with that sentence; do not soften it or skip it.
 
 **Read the booking `summary` back verbatim.** It names who is booked, the confirmation numbers,
 how it is paid, and **ends with the undo sentence worded from the rate's own terms** — *"Not what
@@ -610,7 +623,7 @@ Read `summary` back as written: the NEW confirmation first, then the old confirm
 cancellation number. **`rebook: partial` means the new room is booked but the old one would not
 cancel**, so the traveller holds two rooms: say so plainly, never say the old one is cancelled, and
 offer `cancel_order` on it. The old rate may not be bookable again once cancelled. Worked
-conversations are in `hotel-examples.md`.
+conversations are in [hotel-examples.md](hotel-examples.md).
 
 **`order_move { orderId, legId }`** is different: it files a booking under another trip leg and
 changes nothing at the hotel (operators only). **The reservation and its confirmation number do
@@ -644,4 +657,4 @@ should be smoothed over. Say what was searched, say what came back, say what is 
 offer the next thing you could try.
 
 Worked examples from real responses, and the failures that look like something else, are in
-**`hotel-examples.md`** beside this file.
+**[hotel-examples.md](hotel-examples.md)** beside this file.

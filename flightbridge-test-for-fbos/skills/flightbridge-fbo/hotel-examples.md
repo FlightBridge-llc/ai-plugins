@@ -1,6 +1,6 @@
 # Hotel flow — worked examples and the failure modes
 
-Read `hotels.md` first. This file holds the parts only some runs need: worked conversations, what
+Read [hotels.md](hotels.md) first. This file holds the parts only some runs need: worked conversations, what
 differs from hotel to hotel, and the failures that look like something else.
 
 The examples are taken from test responses (an operator's test account, shopped through the hotel
@@ -233,7 +233,7 @@ mention. What you will see:
   `cancelTimeUncertain` (placed at 6 PM);
 - for some hotels the booking's own price check **cannot read the terms**, so the preview carries
   `POLICY_UNKNOWN`;
-- test inventory is thin and moves between calls (see `hotels.md`).
+- test inventory is thin and moves between calls (see [hotels.md](hotels.md)).
 
 Two consequences for how you talk:
 

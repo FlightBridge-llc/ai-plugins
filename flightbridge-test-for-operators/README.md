@@ -1,4 +1,4 @@
-# FlightBridge Test for Aircraft Operators
+# FlightBridge for Aircraft Operators (Test)
 
 For flight departments, charter schedulers and Trip Managers: plan trips and legs in a sentence, and book crew hotel rooms and rental cars through your FlightBridge account. This plugin bundles the `flightbridge-operator` skill, which teaches the assistant how FlightBridge shops, books, changes and cancels safely, together with the FlightBridge connector (a remote MCP server).
 

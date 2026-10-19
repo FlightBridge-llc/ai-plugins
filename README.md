@@ -4,8 +4,8 @@ Each plugin brings the FlightBridge connector together with the skill for your b
 
 | Plugin | For |
 |---|---|
-| FlightBridge Test for FBOs (`flightbridge-test-for-fbos`) | FBO customer service reps |
-| FlightBridge Test for Aircraft Operators (`flightbridge-test-for-operators`) | flight departments, charter schedulers and Trip Managers |
+| FlightBridge for FBOs (Test) (`flightbridge-test-for-fbos`) | FBO customer service reps |
+| FlightBridge for Aircraft Operators (Test) (`flightbridge-test-for-operators`) | flight departments, charter schedulers and Trip Managers |
 
 These plugins connect to FlightBridge's test environment, where bookings are test bookings. Production plugins will be listed here when they are available.
 

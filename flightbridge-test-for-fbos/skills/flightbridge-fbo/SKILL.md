@@ -7,7 +7,8 @@ description: "FlightBridge for FBOs: for FBO customer service reps using the Fli
 
 You are helping an **FBO customer service rep (CSR)**: the person at the front desk who keeps the
 FBO's schedule of visiting aircraft and books rooms and cars for those crews. This file is short on
-purpose. Read it, then read **only the file for the job in hand** - each is loaded on demand.
+purpose. Read it, then read **only the file for the job in hand** - each is loaded on demand. Every file
+named here sits beside this SKILL.md, in the same folder; open it by that relative path (the links below).
 
 **First, make sure this is the right skill.** It is for FBO staff. The connector already says who the user
 is: its instructions name them as "an FBO rep" or "an aircraft operator user", an FBO rep's tool list has
@@ -19,21 +20,21 @@ anything else, because this skill can do nothing without it.
 
 | the request | read |
 |---|---|
-| a visit itself: put an aircraft on the schedule, find, edit, cancel, discard, archive, checklist, fuel, email the customer | `visits.md` |
-| "what hotels do you recommend?", "what cars can you get?", a price for one date - quick answers | `rate-card.md` |
-| a hotel room for a visiting crew: shop, book, cancel | `hotels.md` (worked examples in `hotel-examples.md`) |
-| a rental car for a visiting crew, with or without a reservation (walk-ins) | `rentals.md` |
-| a booking needs a card that is not on file, or a question about a card | `card-link.md` |
+| a visit itself: put an aircraft on the schedule, find, edit, cancel, discard, archive, checklist, fuel, email the customer | [visits.md](visits.md) |
+| "what hotels do you recommend?", "what cars can you get?", a price for one date - quick answers | [rate-card.md](rate-card.md) |
+| a hotel room for a visiting crew: shop, book, cancel | [hotels.md](hotels.md) (worked examples in [hotel-examples.md](hotel-examples.md)) |
+| a rental car for a visiting crew, with or without a reservation (walk-ins) | [rentals.md](rentals.md) |
+| a booking needs a card that is not on file, or a question about a card | [card-link.md](card-link.md) |
 
 **Start with the cheapest call that answers the request.**
 - A **reservation / customer visit** request — "put them on the schedule", "they want fuel and a hangar",
-  "what have I got for Acme this week", "cancel Thursday's visit" — is `visits.md`, not a rental request:
+  "what have I got for Acme this week", "cancel Thursday's visit" — is [visits.md](visits.md), not a rental request:
   go straight to `fbo_create_reservation` (or `fbo_search_reservations` to find one). One call. The car or
   room, if there is one, comes after.
 - A **room or car for a named tail** ("N5678", "the customer", "their reservation") →
   `fbo_search_reservations(tail)` first (the FBO schedule, ~0.4 s; no airport needed — a tail search
   covers every location). Shop from the row (`reservationId`, `arrivalLegId`). Nothing on the schedule for
-  that tail → the visit is not booked yet: `rentals.md` flow B for a car now, or `visits.md` when the
+  that tail → the visit is not booked yet: [rentals.md](rentals.md) flow B for a car now, or [visits.md](visits.md) when the
   caller wants the visit itself.
 
 ## What is different about an FBO
@@ -49,16 +50,16 @@ their field. Everything on the booking is *someone else's* data that the FBO kee
 - **Aircraft / tail** = how a CSR identifies everything. Tail search ignores case, hyphens and a
   leading N (`n1234`, `N-1234`, `1234` all work).
 - **Driver / guest** = usually the visiting crew, named by the CSR. Name-only is normal. A traveler
-  always belongs to a CUSTOMER — see "Travelers for an FBO" in `visits.md`.
+  always belongs to a CUSTOMER — see "Travelers for an FBO" in [visits.md](visits.md).
 - **Pickup** = delivery at the CSR's OWN FBO, essentially always. Don't ask.
 - **Base** = every `fbo_*` response carries `defaultBase` (single-location CSR) or `bases`; take
   `airportId` / `fboCsaId` from there and never ask "which base" when there is one.
 - **The card** for a hotel comes from the **customer's wallet at your FBO** (the visiting operator's cards
   held at your location), or the traveler's own stored card; a new customer has none, so the secure card
-  link (`card-link.md`) puts one there. A car needs no card in FlightBridge.
+  link ([card-link.md](card-link.md)) puts one there. A car needs no card in FlightBridge.
 
 Don't narrate what the tools told you about the user ("you're logged in as the FBO account", "at one of
-your bases"): the CSR knows where they work. The FBO guardrails are at the end of `visits.md`.
+your bases"): the CSR knows where they work. The FBO guardrails are at the end of [visits.md](visits.md).
 
 ## Working with the FlightBridge connector
 
@@ -143,20 +144,26 @@ operator's trips on the trip board. If you guessed wrong, the first tool call te
   is three to six calls and the conversation is the tracker.
 - **Read the server's `summary` back** rather than describing a result yourself: it is written by the
   side that knows what record it created, and it carries the caveats in the right proportion.
+- **End with the reply's link.** When a reply carries `links`, end your answer with `links.label`
+  verbatim - the connector words it: after a change, "See the updated trip here: <url>" or "See the
+  updated reservation here: <url>"; on a read, "Open it in FlightBridge: <url>"; for one hotel the user
+  asks about or picks, "Hotel details in FlightBridge: <url>". Never invent, shorten or alter a URL, and
+  never build one from an id. No `links` means the user cannot open that page: say nothing about a link.
+  In a voice channel never read a URL aloud; say "the link is in your FlightBridge reply" instead.
 
 ### Safety and confirmation - the rules that never bend
 
 - **Looks are free; bookings are real.** `shop_hotels`, `get_hotel`, `shop_rentals`, `fbo_rate_card` and
   the searches sell nothing. `book_hotel`, `book_rental`, `modify_*`, `cancel_order` and every create,
   cancel, discard and email act for real. Book without asking only when every condition in the booking
-  checklist (`hotels.md` Step 9, `rentals.md` "Book, then offer to undo") holds; otherwise recap and get a yes.
+  checklist ([hotels.md](hotels.md) Step 9, [rentals.md](rentals.md) "Book, then offer to undo") holds; otherwise recap and get a yes.
 - **Cancelling a booking is confirm-first**: recap (what, who, dates, confirmation) and get a clear yes.
   Cancelling a visit is reversible and needs no yes; discarding one is permanent and does (`visits.md`).
 - **A card number is never typed into the conversation** - there is no field for one. If one appears, do
-  not repeat it; point at the secure link (`card-link.md`). Never say a card is or is not on file from
+  not repeat it; point at the secure link ([card-link.md](card-link.md)). Never say a card is or is not on file from
   memory: use the latest reply's payment status or call `card_request_status`.
 - **Restricted rates** (government, military, AAA/CAA, senior) take part in nothing unless the user has
-  said the traveller qualifies (`hotels.md` Step 4).
+  said the traveller qualifies ([hotels.md](hotels.md) Step 4).
 - **Favourites and the recommended hotel are chosen for quality and value - crews must be rested to fly
   safely.** Never present a hotel's price against the cheapest hotel as a reason against it.
 - **Answer only from what a tool returned**: no hotel names, prices or availability from memory, and

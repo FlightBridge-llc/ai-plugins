@@ -1,7 +1,7 @@
 # Cards: the secure card link
 
 Read this when a hotel booking needs a card that is not on file, or the user asks about a card. A card number is
-never typed into the conversation. The payment-status and "which card?" rules are in `hotels.md`, Step 9.
+never typed into the conversation. The payment-status and "which card?" rules are in [hotels.md](hotels.md), Step 9.
 
 **The secure card link (FBO reps and aircraft operators).** A card number is never typed into
 this conversation. On an FBO booking off a reservation the card comes from the **customer's wallet at

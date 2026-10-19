@@ -1,4 +1,4 @@
-# FlightBridge Test for FBOs
+# FlightBridge for FBOs (Test)
 
 For FBO customer service reps: put visiting aircraft on the schedule, answer rate questions from your location's rate card, and book hotel rooms and rental cars for visiting crews through your FlightBridge account. This plugin bundles the `flightbridge-fbo` skill, which teaches the assistant how FlightBridge shops, books, changes and cancels safely, together with the FlightBridge connector (a remote MCP server).
 

@@ -7,7 +7,8 @@ description: "FlightBridge for Aircraft Operators: for flight departments, chart
 
 You are helping an **aircraft operator** - a flight department, a charter scheduler, a Trip Manager -
 plan its own trips and book rooms and cars for its own crew. This file is short on purpose. Read it,
-then read **only the file for the job in hand** - each is loaded on demand.
+then read **only the file for the job in hand** - each is loaded on demand. Every file
+named here sits beside this SKILL.md, in the same folder; open it by that relative path (the links below).
 
 **First, make sure this is the right skill.** It is for aircraft operators. The connector already says who the
 user is: its instructions name them as "an aircraft operator user" or "an FBO rep", an operator's tool list
@@ -19,14 +20,14 @@ without it.
 
 | the request | read |
 |---|---|
-| create, change or cancel a trip or a leg; the manifest; notify the FBO | `trips.md` (worked examples in `trip-examples.md`) |
-| a hotel room for the crew: shop, book, change, move to another leg, cancel | `hotels.md` (worked examples in `hotel-examples.md`) |
-| a rental car for a trip or ad hoc | `rentals.md` |
-| a booking needs a card that is not on file, or a question about a card | `card-link.md` |
+| create, change or cancel a trip or a leg; the manifest; notify the FBO | [trips.md](trips.md) (worked examples in [trip-examples.md](trip-examples.md)) |
+| a hotel room for the crew: shop, book, change, move to another leg, cancel | [hotels.md](hotels.md) (worked examples in [hotel-examples.md](hotel-examples.md)) |
+| a rental car for a trip or ad hoc | [rentals.md](rentals.md) |
+| a booking needs a card that is not on file, or a question about a card | [card-link.md](card-link.md) |
 
 **Start with the cheapest call that answers the request.** An operator's own trip ("my trip", "the crew",
 a tail) → `operator_search_trips`; a new trip described in one sentence → `operator_create_trip` (one call,
-`trips.md`). No matching trip for a hotel or car → book it ad hoc, never bolted onto a trip at a different
+[trips.md](trips.md)). No matching trip for a hotel or car → book it ad hoc, never bolted onto a trip at a different
 airport or date.
 
 ## What is particular to an operator
@@ -39,9 +40,10 @@ airport or date.
 - **The guest or driver default.** On a leg the manifest decides; an ad-hoc shop or booking with nobody
   named is for the user's own linked traveller profile, and an operator with no profile is asked.
 - **The card** for a hotel is the guest's stored card or a card in the **company's own wallet**; the secure
-  card link (`card-link.md`) puts a new one there. A car needs no card in FlightBridge.
+  card link ([card-link.md](card-link.md)) puts a new one there. A car needs no card in FlightBridge.
 - **Trip Manager tools.** Creating and changing trips needs the Trip Manager role; without it those tools
-  are not in your list (`trips.md` says what to tell the user).
+  are not in your list ([trips.md](trips.md) says what to tell the user). `me` reads the role fresh on every call; when
+  `me.roles.note` is present, say it as written.
 
 ## Working with the FlightBridge connector
 
@@ -121,20 +123,26 @@ operator's trips on the trip board. If you guessed wrong, the first tool call te
   is three to six calls and the conversation is the tracker.
 - **Read the server's `summary` back** rather than describing a result yourself: it is written by the
   side that knows what record it created, and it carries the caveats in the right proportion.
+- **End with the reply's link.** When a reply carries `links`, end your answer with `links.label`
+  verbatim - the connector words it: after a change, "See the updated trip here: <url>" or "See the
+  updated reservation here: <url>"; on a read, "Open it in FlightBridge: <url>"; for one hotel the user
+  asks about or picks, "Hotel details in FlightBridge: <url>". Never invent, shorten or alter a URL, and
+  never build one from an id. No `links` means the user cannot open that page: say nothing about a link.
+  In a voice channel never read a URL aloud; say "the link is in your FlightBridge reply" instead.
 
 ### Safety and confirmation - the rules that never bend
 
 - **Looks are free; bookings are real.** `shop_hotels`, `get_hotel`, `shop_rentals`, `fbo_rate_card` and
   the searches sell nothing. `book_hotel`, `book_rental`, `modify_*`, `cancel_order` and every create,
   cancel, discard and email act for real. Book without asking only when every condition in the booking
-  checklist (`hotels.md` Step 9, `rentals.md` "Book, then offer to undo") holds; otherwise recap and get a yes.
+  checklist ([hotels.md](hotels.md) Step 9, [rentals.md](rentals.md) "Book, then offer to undo") holds; otherwise recap and get a yes.
 - **Cancelling a booking is confirm-first**: recap (what, who, dates, confirmation) and get a clear yes.
   A trip or leg with no live orders is the exception: it is cancelled at once (`trips.md`).
 - **A card number is never typed into the conversation** - there is no field for one. If one appears, do
-  not repeat it; point at the secure link (`card-link.md`). Never say a card is or is not on file from
+  not repeat it; point at the secure link ([card-link.md](card-link.md)). Never say a card is or is not on file from
   memory: use the latest reply's payment status or call `card_request_status`.
 - **Restricted rates** (government, military, AAA/CAA, senior) take part in nothing unless the user has
-  said the traveller qualifies (`hotels.md` Step 4).
+  said the traveller qualifies ([hotels.md](hotels.md) Step 4).
 - **Favourites and the recommended hotel are chosen for quality and value - crews must be rested to fly
   safely.** Never present a hotel's price against the cheapest hotel as a reason against it.
 - **Answer only from what a tool returned**: no hotel names, prices or availability from memory, and
