@@ -46,7 +46,8 @@ dates?"*
   with its total per room for the whole stay, free-cancel deadline and bed) and `cars` (each vendor's intermediate,
   full-size, standard SUV and minivan for `carWindow`, cheapest first). `fbo_search_reservations` rows carry
   `rateCardReady` and `rateCardTop`. **"What options do they have?" is answered from `rateCard.hotels` and
-  `rateCard.cars` with no further call**, saying the age. Shop live only when the caller picks one or wants a firm
+  `rateCard.cars` with no further call**, saying the age, each hotel's name written as its
+  `links.hotel.markdown` (the name is the link, as [hotels.md](hotels.md) says). Shop live only when the caller picks one or wants a firm
   price: `shop_hotels {reservationId, live: true}` or `{hotelIds: [the pick]}`, and `shop_rentals {vendors: [the pick],
   startDate, endDate}` with the `carWindow` times (a reservation's leg carries no rental window, so pass them).
   `ready: false` with `queued: true` right after a create means it is still shopping: say so, or shop live.

@@ -11,7 +11,9 @@ then confirm) (+ `fbo_search_travelers` / `fbo_create_traveler` / `fbo_update_tr
 After a create, change, checklist update, cancel or booking on the visit, end with the reply's
 `links.label` ("See the updated reservation here: <url>"); on a read ("tell me about the N1234
 reservation on Wednesday") end with "Open it in FlightBridge: <url>". Each row of
-`fbo_search_reservations` carries its own `links.reservation`.
+`fbo_search_reservations` carries its own `links.reservation`: in a schedule or search table, the tail (or
+the operator, when the row has no tail) is the link, written as `links.reservation.markdown`, with no
+separate link column. The "Open it in FlightBridge" sentence is for a one-visit answer.
 
 ### Intake — plain conversation, one question at a time
 Ask for the **operator** (required) and **at least one date** (required); everything else is

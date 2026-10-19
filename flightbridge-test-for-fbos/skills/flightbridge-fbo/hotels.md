@@ -299,10 +299,13 @@ has said the traveller qualifies** and you pass `eligibleFor: ["government" | "m
 Only the user's words count — for this traveller, in this conversation. Never infer eligibility
 from a title, a tail number or an earlier trip.
 
-**Hotel links.** Every hotel row carries `links.hotel` (the property's page in FlightBridge). Do not print
-one per row; when the user asks about a hotel or picks one, add "Hotel details in FlightBridge: <url>" with
-that row's `links.hotel.url`. After `book_hotel`, end with the reply's `links.label` (the trip or the
-visit), as `_core` says.
+**Hotel links.** Every hotel row carries `links.hotel` (the property's page in FlightBridge). In any table
+or list of hotels, the hotel's NAME is the link: write it as the row's `links.hotel.markdown`
+(`[Candlewood Suites](...)`), with no separate link column, no raw URL and no "Hotel details" sentence per
+row. This holds for a live shop, a cached one, the rate card and a visit's pre-shopped "hotel options"
+(`rateCard.hotels`). A single-hotel answer (`get_hotel`, the rate card's one-hotel view) still ends with the
+reply's `links.label`. After `book_hotel`, end with the reply's `links.label` (the trip or the visit), as
+`_core` says. A row without `links` is plain text.
 
 ## Step 5 — one property in detail, and re-pricing
 

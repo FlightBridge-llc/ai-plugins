@@ -96,7 +96,9 @@ These, and nothing else, earn a question before the call:
 Read the `summary` back; it is written server-side. When the reply carries `links`, end with
 `links.label`: "See the updated trip here: <url>" after a change, "Open it in FlightBridge: <url>" when
 the user only asked about the trip ("tell me about my CLT trip next week"). Each row of
-`operator_search_trips` carries its own `links.trip`; offer the one for the trip the user means. When you present it yourself, keep this order:
+`operator_search_trips` carries its own `links.trip`: in a list of trips, the trip is the link, written as
+`links.trip.markdown`, with no separate link column; the "Open it in FlightBridge" sentence is for a one-trip
+answer. When you present it yourself, keep this order:
 1. trip number and name;
 2. each leg: from -> to, local departure and arrival with the airport's zone, and "(estimated)" on
    an estimated arrival;
