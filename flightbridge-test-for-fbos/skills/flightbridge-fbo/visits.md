@@ -3,15 +3,17 @@
 ## Reservation for a customer visit (the visit itself, car or room optional)
 "Acme is bringing N123AB in Thursday, they want fuel and a hangar." The deliverable is the
 **reservation** — the visit on the FBO's schedule — and the car, if any, is booked against it
-afterwards by flow A in [rentals.md](rentals.md). Tools: `fbo_search_reservations`, `fbo_get_reservation`,
-`fbo_create_reservation`, `fbo_update_reservation`, `fbo_update_checklist`,
-`fbo_cancel_reservation` (cancel AND reinstate), `fbo_discard_reservation`,
-`fbo_archive_reservation`, `fbo_email_reservation` (the customer's confirmation email — preview,
-then confirm) (+ `fbo_search_travelers` / `fbo_create_traveler` / `fbo_update_traveler` for the manifest).
+afterwards by flow A in [rentals.md](rentals.md). Tools: `fbo_reservations` reads the schedule (a
+search, or one visit by `reservationId`), and `fbo_manage_reservation` changes it, with the action
+`create`, `update`, `checklist`, `cancel` (cancel AND reinstate), `discard`, `archive` or `email` (the
+customer's confirmation email — preview, then confirm); `travelers` and `manage_traveler` (actions
+`create` and `update`) handle the manifest's people. What a visit already has booked is on the
+reservation itself; for order history across visits, use `orders` without a reservation
+([orders.md](orders.md)).
 After a create, change, checklist update, cancel or booking on the visit, end with the reply's
 `links.label` ("See the updated reservation here: <url>"); on a read ("tell me about the N1234
 reservation on Wednesday") end with "Open it in FlightBridge: <url>". Each row of
-`fbo_search_reservations` carries its own `links.reservation`: in a schedule or search table, the tail (or
+`fbo_reservations` carries its own `links.reservation`: in a schedule or search table, the tail (or
 the operator, when the row has no tail) is the link, written as `links.reservation.markdown`, with no
 separate link column. The "Open it in FlightBridge" sentence is for a one-visit answer.
 
@@ -23,9 +25,9 @@ book, then offer the pull-up time, counts and contact.
 - **"Date or time unknown is fine — I'll mark it TBD."** Offer that rather than asking twice, and
   never invent a clock time: omit `time` and the schedule shows TBD, which is what a CSR expects
   to see. Say "AM"/"PM" only if the caller does.
-- **Tail** — ideal, not required. Do NOT pre-resolve it: `fbo_create_reservation` resolves the
+- **Tail** — ideal, not required. Do NOT pre-resolve it: `fbo_manage_reservation` action `create` resolves the
   tail and its owner itself (a tail on file supplies the operator), and answers `TAIL_UNKNOWN`
-  when it is new. `fbo_search_aircraft` is for when you need to show the CSR the candidates.
+  when it is new. `fbo_customers` is for when you need to show the CSR the candidates.
   Aircraft facts the CSR states (type, call sign, base) go on the aircraft record when it is
   CREATED (`createTail` + `aircraft{}`); for a tail already on file there is no tool to change
   them yet — say so in one clause ("N1234 is already on ACME's file; I can't change its type
@@ -34,11 +36,11 @@ book, then offer the pull-up time, counts and contact.
   is still on another location's schedule until 10:00 that morning is worth one sentence to the
   CSR before you create.
 - **Contact** — the dispatcher or crew contact: name, phone, email. One is enough to be useful.
-  **A first name is enough when they are on file.** `fbo_search_customers`, `fbo_search_aircraft` and
-  `fbo_search_reservations` carry the operator's `contacts[]` (names, role, hasEmail/hasPhone, lastUsedAt - the day the
+  **A first name is enough when they are on file.** `fbo_customers` and
+  `fbo_reservations` carry the operator's `contacts[]` (names, role, hasEmail/hasPhone, lastUsedAt - the day the
   contact was last put on a visit here, null until known - and lastVisitDate, the travel date of the latest visit read that
   names them; never the email or phone themselves). "Susan is the contact" -> pass `contact: { firstName: "Susan" }` to
-  `fbo_create_reservation` - never ask for a last name first. One match is used and the summary reads *"Contact: Susan Brooks
+  `fbo_manage_reservation` action `create` - never ask for a last name first. One match is used and the summary reads *"Contact: Susan Brooks
   (on file)."* - read it back; two answer `needs: contact` with the candidates (ask which, then send `contact.personId`); none
   answers `needs: contact.lastName` - ask for the last name, then create.
 - **When there is a departure date**, ask once for the **pull-up time** (when the aircraft is to
@@ -47,10 +49,10 @@ book, then offer the pull-up time, counts and contact.
   "How many crew and passengers in, and the same going out?" Take "don't know" and move on.
 
 ### Creating it — ONE call, then react to what the server says
-1. **Send everything the caller said in a single `fbo_create_reservation`**: tail, operator
+1. **Send everything the caller said in a single `fbo_manage_reservation { action: "create" }`**: tail, operator
    (name or id), contact, dates (TBD by omission), pull-up, counts, fuel, `checklist[]` for the
    services they asked for (with any notes), `notes`. The server resolves the tail and the
-   operator itself. Do not call `fbo_search_aircraft`, `fbo_search_customers` or any search
+   operator itself. Do not call `fbo_customers` or any search
    first, and do not split the checklist into a second call when the caller already told you what
    they want: one call is enough.
 2. Then act on the codes, each with one question to the CSR and one re-send:
@@ -86,7 +88,7 @@ book, then offer the pull-up time, counts and contact.
 Everything starts **Not Needed**. Items the caller named go in the create itself (step 1). Only
 when they did not say, offer the items by name from the reservation's own `checklist` ("which of
 these are they asking for — fuel, hangar, lav, catering, hotel, rental car?") and set them in
-**one** `fbo_update_checklist` call.
+**one** `fbo_manage_reservation` action `checklist` call.
 - **Not Started** = the FBO is providing it. **Operator Arranged** = they arranged it themselves
   and the FBO need not. Those two carry the whole distinction; say them in those words.
 - A note goes under the item (`note`), up to 2000 characters.
@@ -104,19 +106,19 @@ checklist item flips to Not Started on its own. Unit defaults to Gal.
 ### Travelers for an FBO — always inside a customer
 A traveler is never just "Bob Smith" to an FBO: he is Bob Smith **at ACME Corporation**, and the
 Bob Smith at XYZ Aviation is a different person with a different profile and loyalty numbers.
-- **Pick from the manifest first.** `fbo_get_reservation` returns `travelers.arrival` /
+- **Pick from the manifest first.** `fbo_reservations` returns `travelers.arrival` /
   `travelers.departure` with `travelerId`; a driver who is on the reservation needs no search.
-- **`fbo_search_travelers`** takes the customer — pass `reservationId` (the server uses that
+- **`travelers`** takes the customer — pass `reservationId` (the server uses that
   reservation's operator) or `customerId`; results carry `customer {customerId, name}`. It will not
   search the whole FBO for you (`CUSTOMER_REQUIRED`); `allCustomers: true` exists for "I don't
   know whose crew he is", and then you say which customer each match belongs to.
-- **`fbo_create_traveler`** creates the person **under the customer** — `customerId`, name,
+- **`manage_traveler` action `create`** creates the person **under the customer** — `customerId`, name,
   crew or passenger, phone/email if known — only after the CSR confirms the person is new to THAT
   customer. `TRAVELER_EXISTS` names the match within the customer; a same-named traveler under
   another customer is not a match and the server will not return one. Pass `reservationId` to put
   them on the manifest at the same time.
-- **`fbo_update_traveler`** adds or changes the **email or phone** on one of your customers' travelers
-  (`travelerId` from `fbo_search_travelers` or `fbo_create_traveler`) - nothing else, never a card. When a
+- **`manage_traveler` action `update`** adds or changes the **email or phone** on one of your customers' travelers
+  (`travelerId` from `travelers` or `manage_traveler` action `create`) - nothing else, never a card. When a
   crew member shows `hasEmail: false`, ask once - *"Bob has no email on file - want me to add one so he
   gets his confirmations?"* - and save it; if the CSR skips it, carry on. When the CSR has already said
   "book", book first and make that offer after the booking - never hold the booking for it.
@@ -134,11 +136,11 @@ Bob Smith at XYZ Aviation is a different person with a different profile and loy
   them whoever enters it, and it only guarantees the room against a no-show (the guest pays at check-in),
   so never ask whether the cardholder is the traveler. After "the card has been saved", call
   `card_request_status` once before booking: it is cheap and carries the label.
-- Never `operator_search_travelers` / `operator_create_traveler` as an FBO: they read and write
-  the FBO's people with no customer at all, and the server refuses them (`WRONG_PERSONA_TOOL`).
+- Never search for or create a traveler without the customer: the same name under another customer
+  is a different person.
 
 ### Editing
-`fbo_update_reservation` with only what changes; everything else is preserved. Pass `expectedVersion`
+`fbo_manage_reservation` action `update` with only what changes; everything else is preserved. Pass `expectedVersion`
 from the reservation you read whenever a second CSR might be working the same visit —
 `RESERVATION_CHANGED` comes back with the current copy, which you read to the caller before
 trying again. Counts read back as "3 crew, 5 pax arriving; 3 crew, 4 pax departing".
@@ -150,28 +152,28 @@ trying again. Counts read back as "3 crew, 5 pax arriving; 3 crew, 4 pax departi
   is all the CSR needs to hear back.
 
 ### Cancel, discard, archive — three different things, in one sentence each
-- **Cancel** (`fbo_cancel_reservation {reservationId, cancelled: true}`): the visit is called
+- **Cancel** (`fbo_manage_reservation { action: "cancel", reservationId, cancelled: true }`): the visit is called
   off. It STAYS on the schedule with a cancelled banner, and anything booked against it is
   untouched — the response warns you when there are live orders, and those need cancelling
-  separately (`cancel_order`). **Cancel is reversible: `cancelled: false` reinstates the visit**,
+  separately (`manage_order` action `cancel`). **Cancel is reversible: `cancelled: false` reinstates the visit**,
   and a cancelled reservation's own record says so (`reinstateHint`, on the reservation and on
   search rows). When a CSR says "they're coming after all", that is the call — never re-create
   the visit, which would make a duplicate. `ALREADY_CANCELLED` / `NOT_CANCELLED` name the call
-  you meant instead; they are answers, not errors to retry. (`fbo_update_reservation {status}`
-  still works, but prefer the cancel tool.)
-- **Discard** (`fbo_discard_reservation`): the reservation disappears from every schedule and
+  you meant instead; they are answers, not errors to retry. (Action `update` with `status` still
+  works, but prefer action `cancel`.)
+- **Discard** (`fbo_manage_reservation` action `discard`): the reservation disappears from every schedule and
   search and **there is no undo**. Say that before calling it. Call it without `confirm` first —
   the guards are evaluated and reported, so you can warn accurately. `HAS_ORDERS` lists the live
-  bookings: offer `cancel_order` first. `LINKED_TRIP` means the operator's own trip is attached
+  bookings: offer `manage_order` action `cancel` first. `LINKED_TRIP` means the operator's own trip is attached
   and it cannot be discarded here at all.
-- **Archive** (`fbo_archive_reservation`): filing a finished visit off the default schedule.
+- **Archive** (`fbo_manage_reservation` action `archive`): filing a finished visit off the default schedule.
   Reversible, changes nothing else, and it is found again with `includeArchived: true`.
 
 The word is **discard**. If the caller says "void", they mean discard — use the platform's word
 back.
 
 ### Emailing the customer their reservation details
-`fbo_email_reservation` sends the platform's own reservation email — the same one the "Email
+`fbo_manage_reservation` action `email` sends the platform's own reservation email — the same one the "Email
 Reservation Details" button sends, with the FBO's branding: dates with TBD spelled out, the
 aircraft, the services marked needed and the orders under them, a 30-day link, and the CSR's
 **remarks** ("Remarks to Operator"). An email to a customer is a side effect on a third party:
@@ -188,7 +190,7 @@ treat it with the same weight as a booking.
   (they are its `notesForCustomer`), so they show on the record too. Omit `remarks` to send what is
   already there.
 - **No contact, or a contact with no email** → `CONTACT_REQUIRED` / `CONTACT_EMAIL_REQUIRED`. Offer
-  the two ways through in the hint: add the contact or the address with `fbo_update_reservation`,
+  the two ways through in the hint: add the contact or the address with `fbo_manage_reservation` action `update`,
   or `toFboOnly: true`, which sends the same email to the FBO location's own inbox (the UI's "Send
   to CSR Only"). Use `toFboOnly` only when the CSR asks for a copy or the contact cannot be reached
   by email — never as a default.
@@ -196,7 +198,7 @@ treat it with the same weight as a booking.
   `includeOrders` / `excludeOrders` change those flags, and the change is saved on the orders, so
   say so ("the Hertz car will show on this and future emails").
 - **"Queued" is the truth.** A successful send means the platform accepted it; the summary says
-  queued, not delivered. "Did it go?" → `fbo_get_reservation` → `emailHistory[]` (when, by whom)
+  queued, not delivered. "Did it go?" → `fbo_reservations` → `emailHistory[]` (when, by whom)
   and `emailDeliveryFailure` (a bounce). In a test environment the preview says `deliveryMode: "test-redirect"`
   and where the mail will actually land — read that sentence to the user so nobody expects the
   customer to have received it.
@@ -226,15 +228,15 @@ treat it with the same weight as a booking.
 - A booking with neither `customerId` nor `aircraftTailId` is allowed but lands under the FBO's
   default customer with no tail: only do it when the CSR genuinely can't identify the aircraft,
   and say that is what happened.
-- "Why isn't that car on my schedule?" → `get_existing_orders(reservationId)` (or `legId`): each
+- "Why isn't that car on my schedule?" → `orders { reservationId }` (or `legId`): each
   row carries `scheduleLinked`. `false` means the car is on the reservation's leg but not attached
   to its Rental Car checklist item (older bookings made outside the schedule); the booking itself
   is valid — say so and point them to support to link it. The same tool answers "show me Pat
-  Tester's bookings" (`travelerName`) across every reservation — add `airport` when you work
-  across locations (a single-base user needs nothing; `AIRPORT_REQUIRED` means pass it). It
-  always needs one of those three scopes (`SCOPE_REQUIRED` otherwise) — it will not read the
-  whole schedule. Each row names its `driver`; order times are `startUtc`/`endUtc` (UTC — take
-  local times from the reservation, never from those).
+  Tester's bookings" (`travelerName`) across every reservation from a week back to a month ahead —
+  add `airport` when you work across locations (a single-base user needs nothing; `AIRPORT_REQUIRED`
+  means pass it). Each row names its `driver`; order times are `startUtc`/`endUtc` (UTC — take
+  local times from the reservation, never from those). With none of `reservationId`, `legId` or
+  `travelerName`, `orders` is the history search instead ([orders.md](orders.md)).
 - Offer TBD rather than pressing for a time, and never fill one in. A guessed arrival time is
   indistinguishable from one the caller gave, and the ramp works off it.
 - Read `possibleDuplicates` back before creating a second reservation for the same visit.
@@ -249,23 +251,24 @@ treat it with the same weight as a booking.
 VISIT: "Acme Aviation is bringing N123AB in Thursday, they want fuel and a hangar, leaving
 Saturday around two" → "Arrival time Thursday?" → "don't know yet" → "I'll mark it TBD" →
 "Pull-up time Saturday? Crew and passengers each way?" → "pull up 13:30, 3 crew 5 pax in, 3 and 4
-out" → ONE fbo_create_reservation(operator {name:"Acme Aviation"}, tail:"N123AB", arrival {date},
+out" → ONE fbo_manage_reservation(action:"create", operator {name:"Acme Aviation"}, tail:"N123AB", arrival {date},
 departure {date, time:"14:00", pullUp {time:"13:30"}}, counts, checklist:[{name:"Fuel",
 status:"NotStarted"}, {name:"Hangar", status:"NotStarted"}]) → the server resolves Acme and the
 tail; `OPERATOR_AMBIGUOUS` / `TAIL_UNKNOWN` would be the only reasons to ask again → read
 `summary` back → "How much fuel and what type? This location has Jet A and Jet A w/Prist." →
-"800 gallons of Jet A" → fbo_update_reservation(fuel {type:"Jet A", quantity:800, unit:"Gal"},
+"800 gallons of Jet A" → fbo_manage_reservation(action:"update", fuel {type:"Jet A", quantity:800, unit:"Gal"},
 compact:true) → read the summary back. "They've got their own hotel" later →
-fbo_update_checklist(items:[{name:"Hotel", status:"OperatorArranged"}]).
+fbo_manage_reservation(action:"checklist", items:[{name:"Hotel", status:"OperatorArranged"}]).
 
-DRIVER FOR A VISIT: "book the car for Bob Smith" on N5678's reservation → fbo_get_reservation
-shows no Bob on the manifest → fbo_search_travelers(reservationId, name:"Bob Smith") → one match
+DRIVER FOR A VISIT: "book the car for Bob Smith" on N5678's reservation → fbo_reservations
+shows no Bob on the manifest → travelers(reservationId, name:"Bob Smith") → one match
 under ACME Corporation (travelerId 80412) → use it (`hasEmail: false` → "Bob has no email on file -
-want me to add one?" → fbo_update_traveler(80412, email)); had it returned nothing → "Bob isn't on file
-for ACME — add him as crew?" → "yes" → fbo_create_traveler(customerId, "Bob", "Smith", Crew,
-reservationId) → travelerId → get_traveler_profile → book.
+want me to add one?" → manage_traveler(action:"update", 80412, email)); had it returned nothing → "Bob isn't on file
+for ACME — add him as crew?" → "yes" → manage_traveler(action:"create", customerId, "Bob", "Smith", Crew,
+reservationId) → travelerId → book.
 
-A TRAVELER'S BOOKINGS: "show me Pat Tester's bookings" → get_existing_orders(travelerName:"Pat Tester")
+A TRAVELER'S BOOKINGS: "show me Pat Tester's bookings" → orders(travelerName:"Pat Tester")
 → typed rows across every reservation in the window (vendor, car, confirmation, dates, status,
 whether the car shows on the schedule) → read them back grouped by reservation; `orderId` from a
-row is what `cancel_order` and `modify_rental` take.
+row is what `manage_order { action: "cancel" }` and a change (`book_rental` or `book_hotel` with that
+order's id) take. For a person's bookings over a longer period, see [orders.md](orders.md).

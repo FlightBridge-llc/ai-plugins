@@ -10,7 +10,7 @@ User: *"I'm planning a trip to CLT next Wednesday on N4455 leaving at noon and c
 When the aircraft has no home base on file, the first call answers one question:
 
 ```
-operator_create_trip { aircraft: "N4455", legs: [ { to: "CLT", departLocal: "2026-10-14T12:00" },
+operator_manage_trip { action: "create", aircraft: "N4455", legs: [ { to: "CLT", departLocal: "2026-10-14T12:00" },
                                                   { to: "PDK", departLocal: "2026-10-15T14:00" } ] }
 -> needs: [{ field: "legs[0].from", question: "Where does the trip leave from? N4455 has no home base in FlightBridge." }]
 ```
@@ -18,7 +18,7 @@ operator_create_trip { aircraft: "N4455", legs: [ { to: "CLT", departLocal: "202
 With a home base on file that question never comes. After "from Peachtree":
 
 ```
-operator_create_trip { aircraft: "N4455", clientRequestId: "...",
+operator_manage_trip { action: "create", aircraft: "N4455", clientRequestId: "...",
   legs: [ { from: "PDK", to: "CLT", departLocal: "2026-10-14T12:00" }, { to: "PDK", departLocal: "2026-10-15T14:00" } ] }
 ```
 
@@ -33,7 +33,7 @@ Answered in about 13 s:
   `arrivalEstimated: true`, `estimatedFrom: "estimated from 42 m flight time"`, manifest empty, no FBO.
 - `defaultsApplied`: leg 2 leaves from KCLT (where leg 1 lands); both arrivals estimated; trip number 0000144
   (FlightBridge's next number); trip name "CLT 10/14" (destination and date); manifest empty; FBOs not set.
-- `undo: operator_cancel_trip { tripId: 98232 }`; `handoff: shop_hotels { legId: 144917 }`.
+- `undo: operator_manage_trip { action: "cancel_trip", tripId: 98232 }`; `handoff: shop_hotels { legId: 144917 }`.
 
 Say it back as the summary does, then offer the undo and the hotels.
 
@@ -43,7 +43,7 @@ leaves from KFTY (the aircraft's home base)"* - no question. Ask only on `needs`
 ## 2. Add a leg
 
 ```
-operator_add_leg { tripId: 98232, leg: { to: "TEB", departLocal: "2026-10-16T09:00" } }
+operator_manage_trip { action: "add_leg", tripId: 98232, leg: { to: "TEB", departLocal: "2026-10-16T09:00" } }
 ```
 > ... KPDK Fri, Oct 16, 9:00 AM EDT -> KTEB Fri, Oct 16, 11:28 AM EDT (estimated).
 `defaultsApplied`: "leg 3 leaves from KPDK (where leg 2 lands)", the estimate (2 h 28 m). About 8 s.
@@ -51,7 +51,7 @@ operator_add_leg { tripId: 98232, leg: { to: "TEB", departLocal: "2026-10-16T09:
 ## 3. Move a departure two hours later
 
 ```
-operator_update_leg { legId: 144918, changes: { departLocal: "2026-10-15T16:00" } }
+operator_manage_trip { action: "update_leg", legId: 144918, changes: { departLocal: "2026-10-15T16:00" } }
 ```
 > Updated leg 144918 of trip 0000144: KCLT Thu, Oct 15, 4:00 PM EDT -> KPDK Thu, Oct 15, 4:42 PM EDT (estimated).
 > arrival re-estimated: Thu, Oct 15, 4:42 PM EDT (42 m flight time).
@@ -62,26 +62,26 @@ The arrival moved because it was an estimate. With a hotel on the leg the read-b
 ## 4. Rename the trip
 
 ```
-operator_update_leg { legId: 144917, changes: { tripName: "Board meeting" } }
+operator_manage_trip { action: "update_leg", legId: 144917, changes: { tripName: "Board meeting" } }
 ```
 > Updated leg 144917 of trip 0000144 (trip name now "Board meeting") ...
 
 ## 5. Crew with no role, on every leg
 
-"Add Bob Smith to the trip as crew": `operator_update_leg` once per leg, `travelers.add [{travelerId, role: crew}]`.
+"Add Bob Smith to the trip as crew": `operator_manage_trip` action `update_leg` once per leg, `travelers.add [{travelerId, role: crew}]`.
 Each answers *"crew role Other for Bob Smith (none given; PIC or SIC can be set any time)"*, and the manifest reads back
 `crewType: Other` on both legs. Then offer: "Is he PIC or SIC?"
 
 ## 6. A new person
 
-`operator_create_traveler` without an email answers `emailOnFile: false` and *"No email on file: this person will not
-get confirmation emails. Add one any time with operator_update_traveler."*; `operator_update_traveler {travelerId,
-email}` answers `hasEmail: true` and *"Saved the email on Bob Smith's profile; confirmation emails will reach them."*
+`manage_traveler` action `create` without an email answers `emailOnFile: false` and *"No email on file: this person will not
+get confirmation emails. Add one any time with manage_traveler."*; `manage_traveler { action: "update", travelerId,
+email }` answers `hasEmail: true` and *"Saved the email on Bob Smith's profile; confirmation emails will reach them."*
 
 ## 7. Cancel a leg with nothing attached - no question
 
 ```
-operator_cancel_leg { legId: 144919 }
+operator_manage_trip { action: "cancel_leg", legId: 144919 }
 ```
 > Cancelled leg 144919 of trip 0000144. Nothing else was attached. ...
 
@@ -101,11 +101,11 @@ answer.
 - Another company's trip: `TRIP_NOT_FOUND`, for read, add, update and both cancels.
 - An imported trip of the user's own company: `TRIP_NOT_EDITABLE`, `reason: notFlightBridgeSourced` - "comes from an
   import or another integration, not from FlightBridge, so it must be changed in the system it came from".
-- An FBO user forcing a create: `ROLE_REQUIRED`; the five tools are not in an FBO user's list at all.
+- An FBO user forcing a create: `ROLE_REQUIRED`; `operator_manage_trip` is not in an FBO user's list at all.
 
 ## 10. Calendar events
 
-`operator_search_trips {airport: TEB}` can return a calendar event: `isEvent: true`, `editable: false`, summary
+`operator_trips {airport: TEB}` can return a calendar event: `isEvent: true`, `editable: false`, summary
 *"Event 0000107 at TEB, Oct 9 (leg 143833; a calendar event, not editable here)."* - offer the next real leg, not a
 hotel. A `tripId` read of a normal trip reads *"Trip 0000150: leg 145917 at CLT"*.
 
@@ -121,21 +121,21 @@ trip 0000145 - one trip, not two.
 ## 12. Notify the FBO
 
 **a. From a leg, while planning.** "...and let Acme know we're coming, we'll want fuel." after a trip is created:
-`operator_notify_fbo { legId: <the CLT arrival leg>, fuel: true }`. Read back the `summary` in one sentence:
+`operator_manage_fbo_notification { action: "send", legId: <the CLT arrival leg>, fuel: true }`. Read back the `summary` in one sentence:
 > Acme Aviation notified: arriving Wed Oct 14 12:42 PM, leaving Thu Oct 15 2:00 PM; fuel requested. FlightBridge e-mails
 > Acme Aviation within about a minute and puts the visit on their FlightBridge board; they confirm it themselves.
 
 **b. Ad hoc, one sentence, one call.** "N1234 into MDT Tuesday 2 PM, out Wednesday 10 AM, fuel and a hangar, tell Acme":
-`operator_notify_fbo { tail: "N1234", airportCode: "MDT", arrival: { date: "<Tue>", time: "14:00" }, departure: { date: "<Wed>",
+`operator_manage_fbo_notification { action: "send", tail: "N1234", airportCode: "MDT", arrival: { date: "<Tue>", time: "14:00" }, departure: { date: "<Wed>",
 time: "10:00" }, fuel: true, hangar: true }` -> `adHocTripCreated: true`, `tripCreated.tripNumber`, `sent: true`. Never
-create the trip first with operator_create_trip for this.
+create the trip first with `operator_manage_trip` for this.
 
 **c. A time change.** "Push the MDT arrival to 4 PM." -> the leg moves and the FBO is told in one call:
-`operator_update_fbo_notification { serviceOrderId, arrivalLocal: "<Tue>T16:00" }` -> `resent: true`, `changes:
+`operator_manage_fbo_notification { action: "update", serviceOrderId, arrivalLocal: "<Tue>T16:00" }` -> `resent: true`, `changes:
 ["arrival time"]`; say "Acme Aviation has the new time (they see it as Changed)". Adding the hangar later is
 `{ serviceOrderId, hangar: true }`, re-sent the same way.
 
-**d. Cancelling.** "We're not going to MDT after all." With the trip: `operator_cancel_trip` lists the FBO notification
+**d. Cancelling.** "We're not going to MDT after all." With the trip: `operator_manage_trip` action `cancel_trip` lists the FBO notification
 among the orders; `ordersAction: "cancel"` sends Acme the cancellation. Without the trip:
-`operator_cancel_fbo_notification { serviceOrderId }` -> `CONFIRMATION_REQUIRED` with what Acme was told -> ask ->
+`operator_manage_fbo_notification { action: "cancel", serviceOrderId }` -> `CONFIRMATION_REQUIRED` with what Acme was told -> ask ->
 `confirm: true` -> `noticeSent: true`. A draft (`send: false` earlier) is discarded at once, nothing sent.

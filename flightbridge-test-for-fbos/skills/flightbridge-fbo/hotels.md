@@ -2,8 +2,10 @@
 
 You are helping an FBO rep book rooms for a visiting crew's night-stop. Three tools do the work:
 **`shop_hotels`** (properties near your airport or for a reservation), **`get_hotel`** (one property in
-full) and **`book_hotel`** (the booking). Cancelling is **`cancel_order`**, and
-**`get_existing_orders`** with `orderType: "hotel"` lists what is booked. The server's own
+full) and **`book_hotel`** (the booking; with `replacesOrderId` it rebooks: new dates, guest or room).
+Cancelling is **`manage_order { action: "cancel" }`**. **`orders`** lists what is booked: on one visit
+with `reservationId`, or for history (a period, an aircraft, a person) without one
+([orders.md](orders.md)). The server's own
 `instructions` carry the operating rules; this skill adds the judgment. **Read "FBO reps: a room for a
 visiting crew" near the end of this file first**: the reservation, the rate card and your FBO's order
 change how a shop starts and how it is presented.
@@ -28,7 +30,7 @@ most one of them.
 - **No leg** → `airportId` (from `search_airports`) or `airportCode`, plus `checkIn`. One night
   is assumed unless you say otherwise. An explicit `rooms` always wins.
 - **Guests.** Pass `guests: [{travelerId}]` whenever you know who is staying — from the
-  reservation's manifest, `fbo_search_travelers` (inside the customer) or `get_traveler_profile`.
+  reservation's manifest, or `travelers` (inside the customer).
    It names who is staying for
   the recommendation and the booking; without it the recommendation will always refuse to stand on
   its own (`GUESTS_UNKNOWN`). It does not change the shop's prices. A leg shop fills `stay.guests` from the named crew. Never pass the login
@@ -159,6 +161,12 @@ stamped to the second that lies months before arrival, or a deadline after check
 and quote the penalty; never quote the stamped time as a free-cancel deadline.
 
 ## Step 2 — present it honestly
+
+**Photos.** A hotel with a photo carries `image` (`url`, and `width` and `height` once known), in `shop_hotels` rows
+and in `get_hotel`. Show it only where your client renders Markdown images, and never describe a photo you have not
+seen. A hotel with no `image` has no photo; do not apologise for it. If your client shows images from tool results but
+will not load a web address, pass `includeImages: "inline"`: the top 8 rows' photos come with the reply, and each
+row's `image.contentIndex` says which one is its photo.
 
 **The selected rate is the hotel's price.** Quote `bestRates.selected`, which is written in full.
 `bestRates` also holds the cheapest per tier (`flightBridge`, `fbo`, `operator`, `shared`, `other`)
@@ -438,8 +446,8 @@ fresh terms**, which can differ from what the shop showed. So it may answer inst
 - **`GUEST_NAME_INVALID`** — a last name needs two letters, and some hotel bookings need a first
   name. Refused before any booking; ask for the full name.
 - **`BOOKING_UNCERTAIN`** — the booking call failed in transit, so it is **not known** whether a
-  room was booked. Say exactly that, do not book again, and read `get_existing_orders`
-  (`orderType: "hotel"`) for those dates first.
+  room was booked. Say exactly that, do not book again, and read `orders` first: the leg's or visit's
+  orders, or a history search with `orderType: "hotel"` and those dates.
 
 **A guest with no email gets no confirmation email.** Email is optional but recommended:
 always ask, never require it.
@@ -447,18 +455,17 @@ always ask, never require it.
   book as soon as the gates allow - do NOT stop to ask about the email first. Then, after reading the
   booking back, say the email is missing and offer to add it (`GUEST_EMAIL_MISSING` names the guest).
 - When the user is still choosing (no instruction to book yet) and a guest's profile has no email
-  (`hasEmail: false` from `operator_search_travelers`, `fbo_search_travelers` or `get_traveler_profile`),
+  (`hasEmail: false` from `travelers`),
   you may ask **once**, in the same message as the recap - *"Bob has no email on file - want me
-  to add one, so he gets his confirmation?"* - and save it: an operator with
-  **`operator_update_traveler { travelerId, email }`**, an FBO rep with
-  **`fbo_update_traveler { travelerId, email }`** (the customer's crew member, from
-  `fbo_search_travelers`).
+  to add one, so he gets his confirmation?"* - and save it with
+  **`manage_traveler { action: "update", travelerId, email }`** (for an FBO rep, the customer's crew
+  member from `travelers`).
 - If the user skips it, book anyway and say plainly that this person will not get the confirmation
   email. Never hold a booking for it.
 - **`GUEST_EMAIL_MISSING`** (a warning, `audience: user`) names each guest without an email, on the
   booking's question and on the booking itself; the booking goes ahead regardless. Relay it in one
   sentence and offer to add the email.
-- FBO reps use `fbo_update_traveler` - it changes only the email and phone on one of your
+- For an FBO rep, `manage_traveler` action `update` changes only the email and phone on one of your
   customers' travelers, never a card. `TRAVELER_NOT_FOUND` means the person is not on any of your
   customers' lists: nothing changed.
 
@@ -470,7 +477,7 @@ by label, each guest's `willUse`, `latestCardRequest` and a one-line `words`, re
 `unknown` - then say nothing about the card until `card_request_status` has answered.
 
 **Ask "which card?" with the hotel choice, not after a refused booking.** A reservation shop, a crew shop with named
-guests and `fbo_get_reservation` carry `paymentPreview`: each guest's `defaultCard` (a label, or null), `willUse` (the card
+guests and `fbo_reservations` carry `paymentPreview`: each guest's `defaultCard` (a label, or null), `willUse` (the card
 the booking will take if you name none - their default, else the customer's only wallet card) and the wallet's `cards`
 `[{vaultCardId, label}]`. When it carries a `question`, put that question IN THE SAME MESSAGE as the hotel list, before
 any booking call. The card rules:
@@ -535,7 +542,7 @@ When the terms did not parse, it says so instead. Never replace it with a blanke
 stateProvince, postalCode, country} and `phone`, and the summary already names the phone beside the
 confirmation. After the summary, give the address in one line (*"Sheraton Harrisburg Hershey, 4650
 Lindle Rd, Harrisburg, Pennsylvania 17111"*) when the crew will drive there or the user asks. Leave
-out a part that is null; never fill one in. `get_existing_orders` hotel rows carry the same `address`,
+out a part that is null; never fill one in. A leg's or visit's `orders` hotel rows carry the same `address`,
 `phone` and `hotelName`, so "where is the crew staying?" is answered from the row.
 
 `groupResult: partial` means some rooms are held and some are not; `rooms[]` names which. Say
@@ -564,15 +571,23 @@ or more. You can tell from `productionPolicy` (`applies: true`) on a `book_hotel
   (free cancellation ends less than 48 hours from now; the number is in the reason), `deadline-passed`. Then **offer a rate that
   qualifies**: the one with the LONGEST free-cancellation window shown (`reversal.freeCancelUntilText`),
   and book that one only on a new yes. Never retry the refused rate, and never present the refusal as an
-  outage.
+  outage. When the refusal's message says the hotel's booking terms are **stricter than the shop showed**
+  (`productionPolicy.tightenedBy: platform`), say that: the hotel's own terms at booking were tighter than
+  the list, so that rate is not booked.
+- **Terms that could not be confirmed** (`productionPolicy.termsClass: "unknown"`, the preview's reason
+  `TERMS_UNKNOWN_LEASH`). On some accounts a rate whose cancellation terms nobody could read, checking in
+  three or more days out, may still be booked, but FlightBridge then cancels it automatically within 24 hours
+  (`autoCancelAt`) unless it is kept. Say that in the question before the yes, never book it unasked, and read
+  the booking's `summary` back, which says the same. If the user wants to keep it, tell them to say so to the
+  FlightBridge team.
 - After the booking, read `summary` as always; `cancelBy` repeats the deadline (ISO, hotel time). Every
   such booking is on FlightBridge's list of live bookings to cancel before the deadline unless kept, so
   if the user says it is a real stay they want to keep, tell them to say so to the FlightBridge team.
 
 ## Step 10 — cancelling
 
-Cancel with `cancel_order { orderId }`, the orderId coming from `get_existing_orders` with
-`orderType: "hotel"`. **Recap first and get a yes** — hotel, guest, dates, confirmation.
+Cancel with `manage_order { action: "cancel", orderId }`, the orderId coming from `orders` (the
+leg's or visit's hotel row, or a history search with `orderType: "hotel"`). **Recap first and get a yes** — hotel, guest, dates, confirmation.
 
 - **`CANCEL_MAY_INCUR_PENALTY`** — the free-cancellation deadline has passed or the terms are
   unknown. The platform itself would cancel without checking and the penalty would arrive on the
@@ -588,13 +603,53 @@ Cancel with `cancel_order { orderId }`, the orderId coming from `get_existing_or
 - **`alreadyCancelled`** — nothing else was done.
 - **`CANCEL_DECLINED`** — the room is **still booked**. Say so.
 - **`CANCEL_UNCERTAIN`** — never say it is cancelled. Say what the message says, and check
-  `get_existing_orders` before any retry.
+  `orders` before any retry.
+
+## Step 11 — changing a booking
+
+Hotels cannot change a booking in place, so **`book_hotel` with `replacesOrderId` rebooks**: it books
+the new room first and only then cancels the old one, so the crew is never left without a room.
+You can rebook a hotel booking filed under one of your own reservations (its `orderId` from that
+visit's orders, or from `orders { travelerName }` for "Jane's hotel"); the guests and stored cards work
+as on the old booking. The visit's own dates do not move with the room: when the aircraft's arrival or
+departure changed too, offer to update the reservation (`fbo_manage_reservation` action `update`).
+
+**Every change is a NEW reservation with a NEW confirmation number, and the old confirmation is
+cancelled.** The hotel is never asked to edit the existing reservation. Users hear "change" and
+expect one reservation to have been edited, so say it in your first sentence, before you act,
+and read both numbers back afterwards.
+
+```
+book_hotel { replacesOrderId, checkIn, checkOut }            // new dates
+book_hotel { replacesOrderId, guests: [{ travelerId }] }     // a different guest
+book_hotel { replacesOrderId, hotelId, bookingRateKey }      // another room or hotel (a key for the NEW dates)
+```
+
+Pass only what changes; with no `hotelId`, the same hotel and rate code are looked up for the new
+dates. **A different guest is always a rebook** in their own name — hotels do not
+reliably apply name changes, so never promise one. It goes ahead **without asking** when the new
+all-in total is no higher and both bookings are still at least a day from their free-cancellation
+deadlines; otherwise it books nothing and answers `CONFIRMATION_REQUIRED` with the price
+difference and both deadlines: ask that one question, then call again with `confirm: true` and
+`confirmedTotal`. When the old booking's hotel gave only the day of its deadline, "a day away" is
+counted from the start of that day (`OLD_INSIDE_WALL` otherwise).
+
+A rebook takes **no `eligibleFor`** yet: onto a restricted rate it answers `needs: eligibleFor`, which
+it cannot be given. Say so, and offer to book the new room with a plain `book_hotel` (with
+`eligibleFor`, once the user confirms the guest qualifies) and then cancel the old one.
+
+Read `summary` back as written: the NEW confirmation first, then the old confirmation and its
+cancellation number. **`rebook: partial` means the new room is booked but the old one would not
+cancel**, so the traveller holds two rooms: say so plainly, never say the old one is cancelled, and
+offer `manage_order { action: "cancel" }` on it. The old rate may not be bookable again once
+cancelled. Worked conversations are in [hotel-examples.md](hotel-examples.md).
+Tell the crew's operator both numbers.
 
 ## FBO reps: a room for a visiting crew
 
 **The first call names the location.** When a rep with several locations has said where they work ("working
 out of MDT"), pass it on the FIRST location-bound call - `fbo_rate_card {airportCode: "MDT", kind: "hotels"}`,
-`shop_hotels {airportCode}`, `shop_rentals {airportCode}`, `fbo_search_reservations {airportCode}` - and the connector
+`shop_hotels {airportCode}`, `shop_rentals {airportCode}`, `fbo_reservations {airportCode}` - and the connector
 remembers it. Never call a location-bound tool with nothing when the rep already told you the airport.
 
 **Quick answers first.** An FBO rep's "what hotels do you recommend?" is answered from the location's rate
@@ -631,9 +686,9 @@ BROWSE: answer it from the card (the plain shop or `fbo_rate_card`), say the age
 to "save a call" - the live shop is for a picked hotel, a firm quote or a booking. "Give me live prices" is ONE live shop
 (`liveOffer.args`); then follow its offer (`moreHotels`) rather than calling the continuation unasked.
 
-**One read answers a visit.** `fbo_get_reservation` carries the pre-shop as `rateCard` and what is already
+**One read answers a visit.** `fbo_reservations` carries the pre-shop as `rateCard` and what is already
 booked as `existingOrders[]`. When `rateCard.ready` is true, answer from it: do NOT call `shop_hotels {reservationId}`
-or `get_existing_orders` for the same visit. Offer the live check, and shop live only when the caller picks a hotel
+or `orders` for the same visit. Offer the live check, and shop live only when the caller picks a hotel
 or wants a firm price. A location the rep named earlier (a shop, the card, a reservation) is remembered for 12 hours:
 shop with no airport and read `defaultsApplied` back; ask which location only on `needs: location`.
 
@@ -646,7 +701,7 @@ when asked why it is listed. Operator shops are unchanged: the selected rate's p
 An FBO rep books off the visiting aircraft's **reservation**, not a trip leg:
 
 ```
-fbo_search_reservations { tail }            → reservationId
+fbo_reservations { tail }            → reservationId
 shop_hotels { reservationId }               → the airport, the stay, the arrival crew
 book_hotel { hotelId, bookingRateKey, guests: [{travelerId}, ...] }
 ```
@@ -656,7 +711,7 @@ day). When `defaultsApplied` says the stay starts the night before an early arri
 local after a flight of 5 hours or more), say so first: it is the night most likely to surprise the crew.
 Rooms are the **arrival crew entered by name**; a crew entered only as a count gives one room
 and no names (`guestSource` says so, and the recommendation carries `GUESTS_UNKNOWN`), so ask who
-is staying (`fbo_search_travelers`). **Your FBO's own location is sent**, so your negotiated rates
+is staying (`travelers`). **Your FBO's own location is sent**, so your negotiated rates
 come back as the `fbo` tier; **the visiting operator's codes are not requested** — the buyer is
 your FBO. (`defaultsApplied` does not list that.) The booking is filed under the reservation's
 arrival leg, so it appears with the visit. Payment is still by stored-card reference — the
@@ -666,13 +721,13 @@ itself; with several, `walletCards` lists them for `payment.vaultCardId`);
 link line ([card-link.md](card-link.md)), with its `pendingQuestion` in the same message when present. Describe the rates that came back as what they are
 (Step 2); say nothing about rates that did not. **Ask only the blocking fact.** One message, one question: when a tail is not on file, ask about the tail
 (offer the near match: "N12345 isn't on file - did you mean N1234, ACME's G550?") and nothing else. Look the person up
-(`fbo_search_travelers`) before asking who they are; a new visit's times default to TBD - say so, never ask for them
+(`travelers`) before asking who they are; a new visit's times default to TBD - say so, never ask for them
 first. Crew or passenger is not a question: FlightBridge takes it from the traveler's profile, crew by default.
 
 **Crew counts and names.** Who gets a room comes only from named people: the visit's named crew, or the
 guests the rep names. A crew count is data, not a person. When the count is higher than the names, the shop and
 the booking carry `CREW_COUNT_EXCEEDS_NAMES {count, named}`: say it once, book the named people only, and offer
-to name the others (`fbo_search_travelers`, or `fbo_create_traveler` for someone new to that customer), then
+to name the others (`travelers`, or `manage_traveler` action `create` for someone new to that customer), then
 shop rooms for that many. A count of zero, or lower than the names, means nothing - ignore it silently. A
 mismatch is normal data, never a defect to report.
 
@@ -688,7 +743,7 @@ named hotel's `hotelId` from the rate card when it is on it; otherwise drop `hot
 from that one shop. A tail search for a visit beyond the next fortnight passes `from`/`to` around the date the user gave.
 This flow overrides the Intake questions (pull-up time, counts, contact): ask none of them before booking; offer them after.
 
-Changing a booking (`modify_hotel`) is not open to FBO reps yet. When it opens it will work the same way: any change makes a new reservation with a new confirmation number and cancels the old one, so tell the crew's operator both numbers.
+Changing a booking is a rebook (Step 11): a new reservation with a new confirmation number, and the old one cancelled.
 
 ## Questions users ask
 

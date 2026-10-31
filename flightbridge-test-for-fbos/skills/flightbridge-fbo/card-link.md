@@ -32,7 +32,7 @@ traveler opened it: the CSR may be the one on the page. A CSR entering the card 
 `enteredOnBehalf: true`.
 When the user says the card is in but the status is still `verified`, say *"identity confirmed, card not
 yet saved - submit the form"* and do not book yet. A page fetch seconds after an email is a mail
-scanner, not a person - it only shows in `linkFetchedAt`. `fbo_get_reservation` also shows `cardOnFile`
+scanner, not a person - it only shows in `linkFetchedAt`. `fbo_reservations` also shows `cardOnFile`
 and `cardRequest`. When the status is `completed` (or `cardOnFile` turns true), book as agreed:
 `book_hotel` again with no `vaultCardId` picks up the traveler's new stored card (and, for an FBO, a
 customer wallet's sole card), and you name it by its label ("Visa ending 1234, Riley Johnson"). **If a card number
@@ -40,8 +40,7 @@ appears in the chat, do not repeat it** - point at the link. `locked` (3 wrong a
 need a new link; a new link for the same visit cancels the old one. `CARD_REQUEST_LIMIT` means 3 links
 already made for this visit or trip in the last 24 hours (it names them - re-use one with
 `card_request_status`, or wait); `RATE_LIMITED` means 5 links in the last hour, or the daily cap, from you; `CARD_LINK_NOT_SUPPORTED` means this operator company's card setting cannot use a
-stored card - say the card has to be added in FlightBridge. (`fbo_request_card` / `fbo_card_request_status`
-are frozen aliases of the two tools.)
+stored card - say the card has to be added in FlightBridge.
 
 **Whose card it is - never a question.** Whoever enters it (the dispatcher, the
 CSR on the phone, or the traveler), an FBO rep's link puts the card into the OPERATOR's wallet at your
@@ -58,7 +57,7 @@ those words taken out (they are the page's security question) - relay the reply'
 it. A note with a long digit run is refused (`PAN_REJECTED`, `needs: note`): rephrase or drop it.
 
 **No card on file: one call, never make a booking call you know will fail.** A new customer has no
-card by definition, and `fbo_create_reservation` / `fbo_get_reservation` say `cardOnFile: false`; an
+card by definition, and the reservation's create reply and `fbo_reservations` say `cardOnFile: false`; an
 operator's shop with named guests says `paymentPreview.cardNeeded`. As soon as the hotel is chosen, call
 `request_card` and say the link line with the link - do NOT call `book_hotel` first, and do not ask who
 should get an email. In the same message ask the one remaining OK the chosen row's own terms need (a

@@ -39,8 +39,8 @@ ones still answering and `continuationToken` collects them (held 2 minutes, 25-s
   books the same way.
 
 ## Working with the rental tools (what the descriptions don't say)
-- **Book by intent — you never carry a locator.** `book_rental` / `modify_rental` take the
-  vendor (`providerCsaId` + `chain`), the vehicle (`sippCode` + `vehicleType`, with the row's
+- **Book by intent — you never carry a locator.** `book_rental` (a booking, or a change with
+  `orderId`) takes the vendor (`providerCsaId` + `chain`), the vehicle (`sippCode` + `vehicleType`, with the row's
   `vehicleCategory`/`vehicleSize` codes), the window, and `total` = the all-in price the user
   approved. The server re-checks that vendor at booking time and books the matching current
   offer only at or below the approved total (+ the greater of $2 or 1%). Read the response:
@@ -59,7 +59,7 @@ ones still answering and `continuationToken` collects them (held 2 minutes, 25-s
   booked (`PRICE_CHANGED`, `NO_LONGER_AVAILABLE`, `RESHOP_FAILED`, `OUTSIDE_LOCATION_HOURS` = closed at
   the requested pickup, see Hours below, `EQUIPMENT_UNSUPPORTED` = this vendor cannot supply an item,
   `NOT_YOUR_TRIP` = that leg belongs to another company, use one from your own
-  `operator_search_trips` / `fbo_search_reservations`; `WRONG_PERSONA_TOOL` /
+  `operator_trips` / `fbo_reservations`; `WRONG_PERSONA_TOOL` /
   `NOT_FBO_USER` = wrong tool family, call `useInstead`); `vendorDeclined` → relay the vendor's
   words and act on `hint`;
   `warnings[]` → relay the ones the user can act on (`OUTSIDE_LOCATION_HOURS`, `LEAD_TIME`,
@@ -79,14 +79,14 @@ ones still answering and `continuationToken` collects them (held 2 minutes, 25-s
   names. A leg's crew count higher than its names is normal data - book for the named people only and
   mention the count once; a count of zero or lower than the names means nothing. Never report a
   mismatch as a defect.
-- **No match from `operator_search_trips`?** Its `diagnostics` says whether legs match the
+- **No match from `operator_trips`?** Its `diagnostics` says whether legs match the
   airport outside your date window and whether the board was truncated (`boardTruncated`, 200-leg
   cap) — read it before declaring there is no trip. (An FBO rep's equivalent is an empty
-  `fbo_search_reservations`: widen the dates or add `includeArchived` before concluding.)
+  `fbo_reservations`: widen the dates or add `includeArchived` before concluding.)
 - **Idempotency:** the server derives a replay key from the booking itself (vendor, vehicle,
   driver, window, equipment, return station), so a retry after a timeout is safe; send your own
   `clientRequestId` when you can.
-- Batch independent calls: `shop_rentals` + `get_traveler_profile` together.
+- Batch independent calls: `shop_rentals` + `travelers` together.
 
 ## Hours — closed at the pickup time (early mornings, Sundays)
 Every booking and modify response returns the booked vendor's `hours` and `hoursAdvice`;
@@ -112,6 +112,13 @@ on their own, `shop_rentals {vendors:["Hertz"], includeHours:true}`). The server
   vendors with `includeHours`. `hoursUnknown` / `HOURS_UNAVAILABLE` → say the hours could not be
   checked. `avisRule` (Avis/Budget, only inside 18 h) is advisory: mention it, it never blocks.
 
+## Car photos
+
+A vehicle carries `image` (`url`, `width`, `height`) when the rental company has a photo of the class. Show it only
+where your client renders Markdown images, and never describe a photo you have not seen; it is the company's sample of
+the class, not the car the driver gets. `includeImages: "inline"` attaches the top 8 cars' photos to the reply, for a
+client that shows images from tool results but will not load a web address.
+
 ## Special equipment
 `equipment: [{type, count}]` on the shop AND the booking (same list, or the price will not match).
 Plain words work — "infant seat", "toddler seat", "booster", "gps", "ski rack", "toll pass";
@@ -119,8 +126,8 @@ Plain words work — "infant seat", "toddler seat", "booster", "gps", "ski rack"
 boosters take a count. Each row's `equipmentCharge` is already inside `allInTotal`. A vendor
 flagged `equipmentUnsupported` / `EQUIPMENT_UNSUPPORTED` cannot supply that item — it is still
 shopped, so say what it lacks; `EQUIPMENT_NOT_PRICED` means the vendor returned no charge for the
-item, so its availability is not confirmed — say so. `modify_rental` can ADD equipment but not
-remove or replace it (`EQUIPMENT_ADDED_NOT_REPLACED`); removal is a cancel-and-rebook.
+item, so its availability is not confirmed — say so. A change (`book_rental` with `orderId`) can ADD
+equipment but not remove or replace it (`EQUIPMENT_ADDED_NOT_REPLACED`); removal is a cancel-and-rebook.
 
 ## One-way (return somewhere else)
 The return station is chain-specific. `shop_rentals` with `returnAirport` prices each vendor to
@@ -144,9 +151,8 @@ If the note contradicts the request (a one-way at a location whose note says no 
 before shopping further rather than quoting a price the vendor will refuse.
 
 ## Loyalty numbers — profile first, then ask
-- Driver has a `travelerId` (from the manifest, `operator_search_travelers` or
-  `fbo_search_travelers`) → `get_traveler_profile`; default from the number on file for the
-  chosen chain ("Hertz Gold on file ends in 4821 — use it?"). A user-stated number always
+- Driver has a `travelerId` (from the manifest or a `travelers` search) → `travelers { travelerId }`
+  for the profile; default from the number on file for the chosen chain ("Hertz Gold on file ends in 4821 — use it?"). A user-stated number always
   overrides. Account name differs from the manifest name → pass `loyaltyAccountFirstName/LastName`.
 - `loyaltyRequirement.required: true` (Untrusted locations — common) → a PREREQUISITE: ask before
   booking; none → offer a vendor where it is optional. Optional → ask once, never block.
@@ -176,29 +182,33 @@ legitimately hold two — but book a second car only when the request clearly as
 
 ## Modifying a rental (a car booking)
 Not an FBO reservation, which is `visits.md`.
-Find it (`get_existing_orders` → the rental row's `orderId`, current total; disambiguate) → shop
+Find it (`orders` → the rental row's `orderId`, current total; disambiguate) → shop
 the new terms at the SAME vendor (`shop_rentals {vendors:[that chain], …}`, same `providerCsaId`)
 → when the user (or the customer's email) asked for this specific change, apply it and report the
 delta afterwards ("done — an extra $38.50, new total $166.15; say so if you'd rather revert"); ask
 first only when the change is not what was asked for or the new total is out of proportion (more
-than ~1.5× the old) → `modify_rental` with `orderId`, `legId`, the same vendor, the vehicle codes,
+than ~1.5× the old) → `book_rental` with `orderId`, `legId`, the same vendor, the vehicle codes,
 the new window and `total` = the new all-in total (loyalty number carried through); the server
 re-checks the vendor like a booking, so
 `PRICE_CHANGED` can come back here too → then read `reRated`: if true, the vendor stored a
 different price than the user approved — tell them immediately
-and offer to revert or cancel. Same-vendor only; "switch to National" = `cancel_order` + fresh
-`book_rental`, offered as exactly that with both prices.
+and offer to revert or cancel. Same-vendor only; "switch to National" = `manage_order { action: "cancel" }`
++ a fresh `book_rental`, offered as exactly that with both prices.
 
 ## Cancelling a rental (a car booking)
 An FBO reservation is cancelled or discarded in `visits.md`.
-`get_existing_orders` → one explicit recap with the confirmation number and "this can't be
-undone" → cancel on a clear yes → `cancel_order(orderId, legId)` — `cancel_order` is the one
+`orders` → one explicit recap with the confirmation number and "this can't be
+undone" → cancel on a clear yes → `manage_order { action: "cancel", orderId, legId }` — the one
 cancel for every order type; the `legId` is optional but lets the server read the reservation
 back and report its new status. Four outcomes: `cancelled: true` is done; `CANCEL_DECLINED` means
 nothing changed and the car is still held; `CANCEL_NOT_FOUND` means no order with that id is
-visible to you — re-read the id from `get_existing_orders`, do not retry; `CANCEL_UNCERTAIN` means
+visible to you — re-read the id from `orders`, do not retry; `CANCEL_UNCERTAIN` means
 the vendor may not have been reached and the car may still be reserved — never say it is
-cancelled; check `get_existing_orders` first.
+cancelled; check `orders` first.
+
+**For history, use `orders` without a leg.** Cars booked over a period, at an airport, for an aircraft
+or for a person - not one leg or visit - come from the history search ([orders.md](orders.md)); its rows
+carry the `orderId` a change or a cancel takes.
 
 ## Ask once, then remember
 Preferences (vendor, class, tolerance, loyalty numbers, pickup-mode habit) live with YOU.
@@ -237,10 +247,10 @@ one question, then book. Two or more missing, or asked for options → present, 
 
 **The driver's email: ask once, never require it.** When the user already said "book",
 book first and mention the missing email after, with the offer to add it. Otherwise, if the
-driver's profile has no email (`hasEmail: false` from `operator_search_travelers` / `get_traveler_profile`),
+driver's profile has no email (`hasEmail: false` from `travelers`),
 ask once before booking - *"Bob has no email on file - want me to add one, so he gets the confirmation?"* - save it with
-`operator_update_traveler { travelerId, email }` (operators) or `fbo_update_traveler { travelerId, email }`
-(an FBO rep, for the customer's crew member from `fbo_search_travelers`), then book. If the user skips it, book anyway and say plainly that
+`manage_traveler { action: "update", travelerId, email }` (for an FBO rep, the customer's crew member from
+`travelers`), then book. If the user skips it, book anyway and say plainly that
 the driver will not get the confirmation email. `GUEST_EMAIL_MISSING` on the booking names a driver
 with a profile and no email; relay it in one sentence. Creating a new driver: ask for the email in
 the same question that confirms the new person.
@@ -296,7 +306,7 @@ the schedule — say so.
 ## FBO flows - a car for a visiting aircraft
 
 ### A. The aircraft has a reservation on the schedule (most requests)
-1. **`fbo_search_reservations(tail: "N1234")` first** — the FBO's own schedule, fast and
+1. **`fbo_reservations(tail: "N1234")` first** — the FBO's own schedule, fast and
    complete. A TAIL search needs no airport: leave `airport` out and every location is searched
    (`scope: "allLocations"`), each row naming its own `airport` and `fbo`; the default window is a
    week back and a fortnight ahead (`window` in the response says so) — pass `from`/`to` for
@@ -308,7 +318,7 @@ the schedule — say so.
    `visits.md` when the CSR wants the visit itself). No tail given and many reservations → ask for
    the tail or the operator name rather than listing the schedule.
    **An operator name searches every location too** — "what are ACME's upcoming visits" is ONE
-   call, `fbo_search_reservations(operator: "ACME Corporation")`, no airport; the response's
+   call, `fbo_reservations(operator: "ACME Corporation")`, no airport; the response's
    `locations[]` says which of the FBO's locations had one and how many. Only a bare date window
    with nothing else needs an `airport` (or `allLocations: true` to accept the whole schedule,
    capped at 200 with `narrowHint`). A CSR limited to one location never sees other locations.
@@ -316,7 +326,7 @@ the schedule — say so.
    question. Window: when the reservation carries the departure, arrival → departure is the
    default — state it as correctable; otherwise ask for return date/time.
 3. Driver: the name the CSR gives. `travelerId` ONLY from the reservation's own manifest
-   (`fbo_get_reservation` → `travelers.arrival/departure`) or from `fbo_search_travelers` scoped
+   (`fbo_reservations` → `travelers.arrival/departure`) or from `travelers` scoped
    to that reservation's customer — otherwise name-only. Never the CSR's own id, never a traveler
    from a different customer even with the same name.
 4. Shop → playbook → loyalty (above; the visiting crew's own numbers if the CSR has them) →
@@ -333,13 +343,13 @@ and aircraft records, which are a real problem in FBO customer lists.
 by-product: it carries the aircraft, the customer and the rental window and nothing else — no
 contact, no pull-up time, no counts, and a checklist on which everything is Not Needed. When the
 CSR is describing a VISIT ("they're coming in Thursday and they want fuel and a car"), create the
-reservation with `fbo_create_reservation` first and then book the car against its
+reservation with `fbo_manage_reservation` action `create` first and then book the car against its
 `legs.arrivalLegId` via flow A. Keep flow B for what it is for: a car, now, for an aircraft the
 CSR is not otherwise recording.
 
 1. **Ask for the tail (optional).** "Which aircraft — tail number? If you don't have it we can
    still book the car." A missing tail NEVER blocks a booking.
-2. **`fbo_search_aircraft(tail)`** — read-only; never creates.
+2. **`fbo_customers(tail)`** — read-only; never creates.
    - `found: true` → it returns `aircraftTailId`, `owningCustomer {customerId, name}` and
      `homeBaseAirportId`. Confirm in one line: "N1234 is on file as ACME Corporation's G550 —
      book it under ACME?" If `homeBaseAirportId` equals your airport, say "based here" — the
@@ -350,15 +360,15 @@ CSR is not otherwise recording.
      if the CSR says it is genuinely a different aircraft, continue to step 3. **That is the
      whole question**: ask only the blocking fact - not the times (they default to
      TBD), not crew or passenger (the profile decides, crew by default), not the email (it is
-     mentioned after a booking). Look a named person up (`fbo_search_travelers`) before asking
+     mentioned after a booking). Look a named person up (`travelers`) before asking
      anything about them.
-3. **Customer:** ask the operator's name → **`fbo_search_customers(name)`** — read-only. Present
+3. **Customer:** ask the operator's name → **`fbo_customers(name)`** — read-only. Present
    the candidates (`exactMatch` marked) and let the CSR choose; a spelling variant of an existing
    customer IS that customer — never treat it as new. No candidates → step 4.
 4. **Create only what is missing, only on an explicit "yes, it's new":**
-   `fbo_create_aircraft(customerId, tail, aircraft{…})` attaches a new aircraft to an EXISTING
-   customer; `fbo_create_aircraft(customerName, tail, aircraft{…})` creates both; a customer with
-   no aircraft yet is `fbo_create_customer(name, contact?)`. **Ask first: "Is this aircraft based
+   `fbo_manage_customer(action:"create_aircraft", customerId, tail, aircraft{…})` attaches a new aircraft to an EXISTING
+   customer; `fbo_manage_customer(action:"create_aircraft", customerName, tail, aircraft{…})` creates both; a customer with
+   no aircraft yet is `fbo_manage_customer(action:"create_customer", name, contact?)`. **Ask first: "Is this aircraft based
    here, or transient?"** and put the answer in `aircraft.homeBase` as an airport CODE (your own
    field's code from `defaultBase`, or the field they named). **Everything the CSR said about the
    aircraft goes ON THE AIRCRAFT**: `aircraft {type, callSign, serialNumber, homeBase, notes}` —
@@ -374,7 +384,7 @@ CSR is not otherwise recording.
    means the type text was stored without matching one of the FBO's standard aircraft types; it
    is not an error.
    `tailAlreadyExisted: true` means nothing new was made. Never call it to "fix" a near-match or
-   a casing/hyphen variant, and never before `fbo_search_aircraft` / `fbo_search_customers` have
+   a casing/hyphen variant, and never before `fbo_customers` have
    run. If the create fails, re-run them before retrying — the customer may have been created
    while the aircraft was not (two separate saves); then call again with the `customerId`.
 5. **"Not sure" is allowed.** CSR doesn't know the operator → book with no `customerId` (the
@@ -389,13 +399,13 @@ CSR is not otherwise recording.
    `airportCode` (matched against those locations) or that location's `fboCsaId` (REQUIRED) +
    `fboName`. An airport that is none of them answers `needs: location` — an FBO reservation cannot
    be created where the FBO has no location, and the server refuses another company's FBO before any
-   vendor call. (`list_fbos` is an operator tool; an FBO rep does not have it.)
+   vendor call. (`search_airports` never lists FBOs for an FBO rep: your locations are `me.bases`.)
 7. **Window:** ask — a walk-in has no reservation to default from. Early/late/weekend pickup →
    `includeHours: true` on the shop and the Hours section above.
-8. **Driver:** name as given; `travelerId` only from `fbo_search_travelers` (scoped to the
-   customer resolved in step 2-3) / `fbo_create_traveler` / `get_traveler_profile`. Never
-   the CSR's own id, never a guess (an unresolvable id has failed the save AFTER the vendor
-   confirmed), never `operator_search_travelers` (refused, and wrong data anyway).
+8. **Driver:** name as given; `travelerId` only from `travelers` scoped to the customer resolved in
+   steps 2-3, or from `manage_traveler` action `create`. Never the CSR's own id, never a guess (an
+   unresolvable id has failed the save AFTER the vendor confirmed), and never a traveler found
+   without the customer (a same-named person under another customer is the wrong one).
 9. **Shop** `shop_rentals(airportId, fboCsaId, pickupMode: "FBO", window — NO legId)` →
    playbook → loyalty → run the six-point checklist in "Book, then offer to undo" above. All
    six hold → book (step 10) and the read-back is the recap; one missing → ask that one thing.
@@ -421,20 +431,20 @@ CSR is not otherwise recording.
 ### FBO rental examples
 
 "N1234 is arriving Tuesday and the crew needs a midsize for two days" →
-fbo_search_reservations(tail:"N1234") → one row: ACME Corporation at MDT, Tue arrival, Thu
+fbo_reservations(tail:"N1234") → one row: ACME Corporation at MDT, Tue arrival, Thu
 departure, arrivalFbo Acme Aviation, arrivalLegId → pickup = Acme Aviation delivery, no question; window =
 arrival → departure (state it) → shop_rentals(legId, pickupMode:"FBO", vehicleClass:"Midsize")
 → playbook → "Driver's name? Any Hertz/National number?" (a name on the manifest supplies the
-`travelerId`; otherwise fbo_search_travelers(reservationId, name)) → recap → book_rental(legId …)
+`travelerId`; otherwise travelers(reservationId, name)) → recap → book_rental(legId …)
 → "Hertz Altima attached to N1234's reservation, confirmation …".
 
 WALK-IN: "N2345, Northwind Charter, no reservation — they want an SUV tomorrow 9 AM to
-Thursday 5 PM" → fbo_search_reservations(tail:"N2345") → nothing → fbo_search_aircraft("N2345")
+Thursday 5 PM" → fbo_reservations(tail:"N2345") → nothing → fbo_customers("N2345")
 → found:false, nearby: N2340 (Northwind Charter) → "N2340 is on file for Northwind Charter — is
-this a different aircraft?" → "yes, new" → fbo_search_customers("Northwind Charter") →
+this a different aircraft?" → "yes, new" → fbo_customers("Northwind Charter") →
 exactMatch customerId 41200 → "Add N2345 to Northwind Charter's aircraft? Is it based here or
 transient — and do you know the type?" → "transient, a Challenger 350" →
-fbo_create_aircraft(customerId:41200, tail:"N2345", aircraft{type:"Challenger 350"}) →
+fbo_manage_customer(action:"create_aircraft", customerId:41200, tail:"N2345", aircraft{type:"Challenger 350"}) →
 aircraftTailId, no `basedAt` (transient) → airportId + fboCsaId from `defaultBase` (one-base user;
 no question, no lookup) → shop_rentals
 (airportId, fboCsaId, pickupMode:"FBO", window, no legId) → playbook → driver name-only (no

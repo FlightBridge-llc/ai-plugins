@@ -41,22 +41,22 @@ dates?"*
 - `RATE_CARD_NOT_READY`: no card for that location yet - shop live as before.
 - **A reservation's own pre-shop.** Each upcoming reservation at a card location is shopped ahead for its exact
   stay (arrival night to departure date, one room per arrival crew member) and car window, within a minute of
-  `fbo_create_reservation` or a date change, and by a 15-minute scan for reservations made in the web app.
-  `fbo_get_reservation` carries it as `rateCard`: `line`, the full `hotels` list (the card's 10, Favorites first, each
+  its create or a date change (`fbo_manage_reservation`), and by a 15-minute scan for reservations made in the web app.
+  `fbo_reservations` carries it as `rateCard`: `line`, the full `hotels` list (the card's 10, Favorites first, each
   with its total per room for the whole stay, free-cancel deadline and bed) and `cars` (each vendor's intermediate,
-  full-size, standard SUV and minivan for `carWindow`, cheapest first). `fbo_search_reservations` rows carry
+  full-size, standard SUV and minivan for `carWindow`, cheapest first). `fbo_reservations` rows carry
   `rateCardReady` and `rateCardTop`. **"What options do they have?" is answered from `rateCard.hotels` and
   `rateCard.cars` with no further call**, saying the age, each hotel's name written as its
   `links.hotel.markdown` (the name is the link, as [hotels.md](hotels.md) says). Shop live only when the caller picks one or wants a firm
   price: `shop_hotels {reservationId, live: true}` or `{hotelIds: [the pick]}`, and `shop_rentals {vendors: [the pick],
   startDate, endDate}` with the `carWindow` times (a reservation's leg carries no rental window, so pass them).
   `ready: false` with `queued: true` right after a create means it is still shopping: say so, or shop live.
-- **When `fbo_get_reservation` carries a ready `rateCard`, do NOT call `shop_hotels {reservationId}` too.**
+- **When `fbo_reservations` carries a ready `rateCard`, do NOT call `shop_hotels {reservationId}` too.**
   The read already holds the pre-shopped hotels and cars; answer from it and offer the live check. A second call
   returns the same figures and costs the caller seconds.
-- **"What about the Oct 20 visit?" is ONE call.** `fbo_get_reservation` carries the visit, its pre-shop
+- **"What about the Oct 20 visit?" is ONE call.** `fbo_reservations` carries the visit, its pre-shop
   (`rateCard`) and what is already booked against it (`existingOrders[]`: type, vendor, confirmation, status, leg;
-  cancelled orders left out). Do not follow it with `get_existing_orders` or `shop_hotels` for the same visit.
+  cancelled orders left out). Do not follow it with `orders` or `shop_hotels` for the same visit.
   `existingOrders: []` means nothing is booked yet; `existingOrdersErrors` means a read failed, so say that you could
   not check, never that nothing is booked.
 - **The location the rep named is remembered.** Once a rep with several locations names

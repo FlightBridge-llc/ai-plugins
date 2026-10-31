@@ -1,6 +1,6 @@
 ---
 name: "flightbridge-operator"
-description: "FlightBridge for Aircraft Operators: for flight departments, charter schedulers and Trip Managers using the FlightBridge connector. Create, change and cancel trips and legs in one sentence ('a trip to CLT next Wednesday on N1234 leaving at noon, back Thursday at 2pm', 'add a leg to Teterboro Friday', 'put John Smith on the return leg as PIC', 'cancel the return leg'); shop and book hotel rooms for the crew off a leg or ad hoc ('where can the crew stay in Teterboro Thursday', 'something they can cancel until 6pm', 'is there a government rate', 'book the FlightBridge rate for John and Jane'), with free-cancellation deadlines, negotiated and restricted rates, all-in prices, rebooking, moving a booking to another leg and cancelling safely; rent cars for a trip or ad hoc ('a large SUV in Phoenix next week', 'I prefer Hertz'), FBO delivery or terminal, loyalty numbers, one-way returns; and send the secure card link to put a card in the company wallet. Requires the FlightBridge connector."
+description: "FlightBridge for Aircraft Operators: for flight departments, charter schedulers and Trip Managers. Create, change and cancel trips and legs in one sentence ('a trip to CLT next Wednesday on N1234 leaving at noon, back Thursday at 2pm', 'add a leg to Teterboro Friday', 'put John Smith on the return leg as PIC', 'cancel the return leg'); shop and book hotel rooms for the crew off a leg or ad hoc ('where can the crew stay in Teterboro Thursday', 'something they can cancel until 6pm', 'is there a government rate', 'book the FlightBridge rate for John and Jane'), with free-cancellation deadlines, negotiated and restricted rates, all-in prices, rebooking, moving a booking to another leg and cancelling safely; rent cars for a trip or ad hoc ('a large SUV in Phoenix next week'), FBO delivery or terminal, loyalty numbers, one-way returns; book airline tickets to position crew; order history; the company's aircraft list; and the secure card link for a company card. Requires the FlightBridge connector."
 ---
 
 # FlightBridge for Aircraft Operators
@@ -23,18 +23,22 @@ without it.
 | create, change or cancel a trip or a leg; the manifest; notify the FBO | [trips.md](trips.md) (worked examples in [trip-examples.md](trip-examples.md)) |
 | a hotel room for the crew: shop, book, change, move to another leg, cancel | [hotels.md](hotels.md) (worked examples in [hotel-examples.md](hotel-examples.md)) |
 | a rental car for a trip or ad hoc | [rentals.md](rentals.md) |
+| order history: what was booked over a period, at an airport, for an aircraft or a person | [orders.md](orders.md) |
+| the company's aircraft: which ones, add, change, delete, the owner one flies for | [aircraft.md](aircraft.md) |
+| an airline ticket for a crew member or passenger: search, book, status, void or cancel | [air.md](air.md) |
+| a schedule, a leg checklist or a rollup: what is done, change a status, the leg, trip or text notes | [schedules.md](schedules.md) |
 | a booking needs a card that is not on file, or a question about a card | [card-link.md](card-link.md) |
 
 **Start with the cheapest call that answers the request.** An operator's own trip ("my trip", "the crew",
-a tail) → `operator_search_trips`; a new trip described in one sentence → `operator_create_trip` (one call,
-[trips.md](trips.md)). No matching trip for a hotel or car → book it ad hoc, never bolted onto a trip at a different
+a tail) → `operator_trips`; a new trip described in one sentence → `operator_manage_trip { action: "create" }`
+(one call, [trips.md](trips.md)); "which aircraft do we have?" → `operator_aircraft`. No matching trip for a hotel or car → book it ad hoc, never bolted onto a trip at a different
 airport or date.
 
 ## What is particular to an operator
 
-- **Your own records.** Trips, legs and travelers are the company's own: `operator_search_trips`,
-  `operator_search_travelers`, `operator_create_traveler`, `operator_update_traveler`. A traveler's name is
-  enough to find them - every traveler belongs to the operator.
+- **Your own records.** Trips, legs, aircraft and travelers are the company's own: `operator_trips`,
+  `operator_aircraft` and `travelers` read them, and each has its `manage_*` tool to change it. A
+  traveler's name is enough to find them - every traveler belongs to the operator.
 - **Never assume an airport.** The leg or the user's words supply it; an aircraft may have a home base,
   which a new trip leaves from by default.
 - **The guest or driver default.** On a leg the manifest decides; an ad-hoc shop or booking with nobody
@@ -81,27 +85,41 @@ This skill is for aircraft operators. If responses carry `context: "FBO"`, the u
 FBO's: say once that the "FlightBridge for FBOs" skill is the one written for their account, and carry
 on with the server's instructions.
 
-### The tool families — prefixed tools are YOUR RECORDS, unprefixed tools are the marketplace
+### The tools - read with the noun, change with `manage_*`
 
-You only see the tools for your role (the server filters the list by persona), so every tool in
-your list is yours to use. The prefix still tells you what kind of thing a tool touches:
-- **`operator_*`** — an aircraft operator's own records: `operator_search_trips`,
-  `operator_search_travelers`, `operator_create_traveler`, `operator_update_traveler` (an email or
-  phone on an existing profile), and for a Trip Manager `operator_create_trip`, `operator_add_leg`,
-  `operator_update_leg`, `operator_cancel_leg`, `operator_cancel_trip`. `request_card` /
-  `card_request_status` return a secure link to put a card on file - a card number is never typed into
-  the chat.
+Each kind of record has one tool that reads it, named for the thing (`orders`, `travelers`), and one that
+changes it, `manage_<thing>`, which takes an `action` naming the change: `manage_order { action: "cancel",
+orderId }`. **Read with the noun tool; to change something, call its `manage_*` tool and say which action.**
+Booking keeps its own verbs: `shop_hotels`, `get_hotel`, `book_hotel`, `shop_rentals`, `book_rental`.
+
+You only see the tools for your role (the server filters the list by persona), so every tool in your list
+is yours to use. A prefix marks a record only your role keeps:
+- **Trips and legs:** `operator_trips` (find trips, or one by `tripId` or `legId`) and, for a Trip Manager,
+  `operator_manage_trip`, actions `create`, `add_leg`, `update_leg`, `cancel_leg` and `cancel_trip`
+  ([trips.md](trips.md)).
+- **FBO notifications:** `operator_fbo_notifications` and, for a Trip Manager,
+  `operator_manage_fbo_notification`, actions `send`, `update` and `cancel`.
+- **Your aircraft:** `operator_aircraft` and `operator_manage_aircraft`, actions `save`, `delete` and
+  `save_owner` ([aircraft.md](aircraft.md)).
 - You will not see the `fbo_*` tools (an FBO's records about visiting aircraft); if a stale list shows
   one it refuses an operator with `NOT_FBO_USER`.
-- **Unprefixed — the marketplace**, the same for both roles: `shop_hotels`, `get_hotel`, `book_hotel`,
-  `shop_rentals` (every vendor, or `vendors:[one]` to re-price a single vendor — a vendor that is not at
-  that location answers `VENDOR_NOT_AT_LOCATION` naming the chains that are, so offer those rather than
-  "no cars"; `includeHours` for hours and staging; `returnAirport` for one-way stations), `book_rental`,
-  `modify_rental`, `cancel_order` (any order), `get_existing_orders` (any order — scoped by
-  `legId`, `reservationId` or `travelerName`, one of which is required: `SCOPE_REQUIRED` — "Pat
-  Tester's bookings"), `get_traveler_profile` (loyalty numbers on file), `search_airports`.
-  `modify_hotel` and `order_move` change an operator's hotel bookings. `list_fbos` (the FBOs at an
-  airport) is the **operator's** only (ad-hoc FBO delivery, an FBO choice on a leg).
+
+The rest are the same for both roles:
+- **Crew and passengers:** `travelers` (by name, or a profile by `travelerId`, with loyalty numbers on
+  file) and `manage_traveler`, actions `create` and `update` (an email or phone on an existing profile).
+- **Orders:** `orders` (what is on one leg or visit, or the order history - [orders.md](orders.md)) and
+  `manage_order`, action `cancel` for any order.
+  Action `move` files a hotel booking under another trip leg.
+- **Cards:** `request_card` / `card_request_status` return a secure link to put a card on file - a card
+  number is never typed into the chat ([card-link.md](card-link.md)).
+- **Booking:** `shop_hotels`, `get_hotel`, `book_hotel` (with `replacesOrderId` it rebooks: new dates,
+  another guest or another room), `shop_rentals` (every vendor, or `vendors:[one]` to re-price a single
+  vendor — a vendor that is not at that location answers `VENDOR_NOT_AT_LOCATION` naming the chains that
+  are, so offer those rather than "no cars"; `includeHours` for hours and staging; `returnAirport` for
+  one-way stations) and `book_rental` (with `orderId` it changes a booked car).
+- **Airports:** `search_airports`. When the search resolves to ONE airport it also lists that airport's
+  FBOs (`fbos[]`, for ad-hoc FBO delivery or an FBO choice on a leg); with several candidates, narrow the
+  search, or pass `includeFbos: true` to list them on every candidate.
 
 If a stale client ever shows you a tool from the other role, the server refuses it with
 `WRONG_PERSONA_TOOL` and `useInstead` — call that tool, and do not treat the refusal as "no data".
@@ -136,8 +154,8 @@ operator's trips on the trip board. If you guessed wrong, the first tool call te
 ### Safety and confirmation - the rules that never bend
 
 - **Looks are free; bookings are real.** `shop_hotels`, `get_hotel`, `shop_rentals`, `fbo_rate_card` and
-  the searches sell nothing. `book_hotel`, `book_rental`, `modify_*`, `cancel_order` and every create,
-  cancel, discard and email act for real. Book without asking only when every condition in the booking
+  the reads sell nothing. `book_hotel` and `book_rental` (a rebook or a change too) act for real, and so
+  does every `manage_*` action: each create, change, cancel, discard, delete and email. Book without asking only when every condition in the booking
   checklist ([hotels.md](hotels.md) Step 9, [rentals.md](rentals.md) "Book, then offer to undo") holds; otherwise recap and get a yes.
 - **Cancelling a booking is confirm-first**: recap (what, who, dates, confirmation) and get a clear yes.
   A trip or leg with no live orders is the exception: it is cancelled at once (`trips.md`).

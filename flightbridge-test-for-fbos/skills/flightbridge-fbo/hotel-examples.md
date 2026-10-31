@@ -118,7 +118,7 @@ question; book with `eligibleFor: ["military"]` only on a yes.
 > FBO rep at Grand Rapids: "Find the crew of Wednesday's arrival a hotel."
 
 ```
-fbo_search_reservations { ... }       → reservationId
+fbo_reservations { ... }       → reservationId
 shop_hotels { reservationId }
 ```
 
@@ -195,8 +195,8 @@ rate's own terms, so when the terms did not parse it says that instead.
 > "Actually, cancel the Hilton."
 
 ```
-get_existing_orders { orderType: "hotel" }       → orderId
-cancel_order { orderId }
+orders { legId | reservationId, orderType: "hotel" }   → orderId (no leg or visit: the history search)
+manage_order { action: "cancel", orderId }
 ```
 
 Recap the booking and get a yes first. When the free-cancellation deadline has passed, or the
@@ -217,25 +217,25 @@ A guest change:
 > **User:** Change Bob's room at the Hilton to Jane Smith.
 > **You:** That makes a new reservation in Jane's name with its own confirmation number, and
 > Bob's reservation, confirmation H2345678, is cancelled once Jane's is booked. Booking it now.
-> *(modify_hotel)* Booked Hilton Hasbrouck Heights for Jane Smith, Oct 6 to 7, 163.91 USD all in,
+> *(book_hotel with replacesOrderId: Bob's booking, guests: Jane)* Booked Hilton Hasbrouck Heights for Jane Smith, Oct 6 to 7, 163.91 USD all in,
 > new confirmation H3456789. Bob's booking, confirmation H2345678, is cancelled
 > (cancellation number H2345678). Free to cancel until 6:00 PM EDT on Oct 6; just say so.
 
 A date change that costs more previews first:
 
 > **User:** Move the crew's hotel to the 7th.
-> **You:** *(modify_hotel answers CONFIRMATION_REQUIRED)* Book the Hilton Hasbrouck Heights for
+> **You:** *(book_hotel with replacesOrderId and the new dates answers CONFIRMATION_REQUIRED)* Book the Hilton Hasbrouck Heights for
 > Jane Smith, Oct 7 to 8, 176.31 USD all in? This creates a NEW reservation with a new
 > confirmation number; Jane Smith's confirmation H3456789 will be cancelled. The new rate is
 > 12.40 USD higher than Jane Smith's.
 > **User:** Yes.
-> **You:** *(modify_hotel with confirm: true)* ...reads `summary`: the new confirmation, then the
+> **You:** *(the same call again with confirm: true)* ...reads `summary`: the new confirmation, then the
 > old one cancelled.
 
 When the old room will not cancel (`rebook: partial`), the summary says: *"...NEW confirmation
 H3456789. Bob Smith's booking, confirmation H2345678, could NOT be cancelled and is still
 held, so both rooms are currently booked. I'll retry the cancel, or you can cancel it with
-cancel_order."*
+manage_order."*
 
 ## Hotels differ in what their systems return, and you will notice
 

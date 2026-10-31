@@ -33,8 +33,8 @@ ones still answering and `continuationToken` collects them (held 2 minutes, 25-s
   books the same way.
 
 ## Working with the rental tools (what the descriptions don't say)
-- **Book by intent — you never carry a locator.** `book_rental` / `modify_rental` take the
-  vendor (`providerCsaId` + `chain`), the vehicle (`sippCode` + `vehicleType`, with the row's
+- **Book by intent — you never carry a locator.** `book_rental` (a booking, or a change with
+  `orderId`) takes the vendor (`providerCsaId` + `chain`), the vehicle (`sippCode` + `vehicleType`, with the row's
   `vehicleCategory`/`vehicleSize` codes), the window, and `total` = the all-in price the user
   approved. The server re-checks that vendor at booking time and books the matching current
   offer only at or below the approved total (+ the greater of $2 or 1%). Read the response:
@@ -53,7 +53,7 @@ ones still answering and `continuationToken` collects them (held 2 minutes, 25-s
   booked (`PRICE_CHANGED`, `NO_LONGER_AVAILABLE`, `RESHOP_FAILED`, `OUTSIDE_LOCATION_HOURS` = closed at
   the requested pickup, see Hours below, `EQUIPMENT_UNSUPPORTED` = this vendor cannot supply an item,
   `NOT_YOUR_TRIP` = that leg belongs to another company, use one from your own
-  `operator_search_trips` / `fbo_search_reservations`; `WRONG_PERSONA_TOOL` /
+  `operator_trips` / `fbo_reservations`; `WRONG_PERSONA_TOOL` /
   `NOT_FBO_USER` = wrong tool family, call `useInstead`); `vendorDeclined` → relay the vendor's
   words and act on `hint`;
   `warnings[]` → relay the ones the user can act on (`OUTSIDE_LOCATION_HOURS`, `LEAD_TIME`,
@@ -70,7 +70,7 @@ ones still answering and `continuationToken` collects them (held 2 minutes, 25-s
   reservation, with its `reservationNumber`). Read it to the user instead of describing the result
   yourself; never call an FBO reservation an "itinerary" or quote a numeric trip id to an FBO rep.
 - **Calendar events are not trips.** A row with `tripType: event` (and `isEvent: true`, `event`: its
-  name, airport and dates) from `operator_search_trips` is a calendar event: trip type 2, always two legs,
+  name, airport and dates) from `operator_trips` is a calendar event: trip type 2, always two legs,
   "1" the start and "2" the end, usually at one airport. Never call it a flight, and never pick it as
   "your trip" just because it is next: offer no car, hotel or edit for it unless the user asks for that
   event by name, and if it is the pick, say so and offer the next real leg from `otherUpcomingLegs`. When
@@ -80,14 +80,14 @@ ones still answering and `continuationToken` collects them (held 2 minutes, 25-s
   names. A leg's crew count higher than its names is normal data - book for the named people only and
   mention the count once; a count of zero or lower than the names means nothing. Never report a
   mismatch as a defect.
-- **No match from `operator_search_trips`?** Its `diagnostics` says whether legs match the
+- **No match from `operator_trips`?** Its `diagnostics` says whether legs match the
   airport outside your date window and whether the board was truncated (`boardTruncated`, 200-leg
   cap) — read it before declaring there is no trip. (An FBO rep's equivalent is an empty
-  `fbo_search_reservations`: widen the dates or add `includeArchived` before concluding.)
+  `fbo_reservations`: widen the dates or add `includeArchived` before concluding.)
 - **Idempotency:** the server derives a replay key from the booking itself (vendor, vehicle,
   driver, window, equipment, return station), so a retry after a timeout is safe; send your own
   `clientRequestId` when you can.
-- Batch independent calls: `shop_rentals` + `get_traveler_profile` together.
+- Batch independent calls: `shop_rentals` + `travelers` together.
 
 ## Hours — closed at the pickup time (early mornings, Sundays)
 Every booking and modify response returns the booked vendor's `hours` and `hoursAdvice`;
@@ -113,6 +113,13 @@ on their own, `shop_rentals {vendors:["Hertz"], includeHours:true}`). The server
   vendors with `includeHours`. `hoursUnknown` / `HOURS_UNAVAILABLE` → say the hours could not be
   checked. `avisRule` (Avis/Budget, only inside 18 h) is advisory: mention it, it never blocks.
 
+## Car photos
+
+A vehicle carries `image` (`url`, `width`, `height`) when the rental company has a photo of the class. Show it only
+where your client renders Markdown images, and never describe a photo you have not seen; it is the company's sample of
+the class, not the car the driver gets. `includeImages: "inline"` attaches the top 8 cars' photos to the reply, for a
+client that shows images from tool results but will not load a web address.
+
 ## Special equipment
 `equipment: [{type, count}]` on the shop AND the booking (same list, or the price will not match).
 Plain words work — "infant seat", "toddler seat", "booster", "gps", "ski rack", "toll pass";
@@ -120,8 +127,8 @@ Plain words work — "infant seat", "toddler seat", "booster", "gps", "ski rack"
 boosters take a count. Each row's `equipmentCharge` is already inside `allInTotal`. A vendor
 flagged `equipmentUnsupported` / `EQUIPMENT_UNSUPPORTED` cannot supply that item — it is still
 shopped, so say what it lacks; `EQUIPMENT_NOT_PRICED` means the vendor returned no charge for the
-item, so its availability is not confirmed — say so. `modify_rental` can ADD equipment but not
-remove or replace it (`EQUIPMENT_ADDED_NOT_REPLACED`); removal is a cancel-and-rebook.
+item, so its availability is not confirmed — say so. A change (`book_rental` with `orderId`) can ADD
+equipment but not remove or replace it (`EQUIPMENT_ADDED_NOT_REPLACED`); removal is a cancel-and-rebook.
 
 ## One-way (return somewhere else)
 The return station is chain-specific. `shop_rentals` with `returnAirport` prices each vendor to
@@ -145,9 +152,8 @@ If the note contradicts the request (a one-way at a location whose note says no 
 before shopping further rather than quoting a price the vendor will refuse.
 
 ## Loyalty numbers — profile first, then ask
-- Driver has a `travelerId` (from the manifest, `operator_search_travelers` or
-  `fbo_search_travelers`) → `get_traveler_profile`; default from the number on file for the
-  chosen chain ("Hertz Gold on file ends in 4821 — use it?"). A user-stated number always
+- Driver has a `travelerId` (from the manifest or a `travelers` search) → `travelers { travelerId }`
+  for the profile; default from the number on file for the chosen chain ("Hertz Gold on file ends in 4821 — use it?"). A user-stated number always
   overrides. Account name differs from the manifest name → pass `loyaltyAccountFirstName/LastName`.
 - `loyaltyRequirement.required: true` (Untrusted locations — common) → a PREREQUISITE: ask before
   booking; none → offer a vendor where it is optional. Optional → ask once, never block.
@@ -176,28 +182,32 @@ go into the read-back; `DRIVER_ALREADY_HAS_CAR` is a warning, not a block — tr
 legitimately hold two — but book a second car only when the request clearly asks for one.
 
 ## Modifying a rental (a car booking)
-Find it (`get_existing_orders` → the rental row's `orderId`, current total; disambiguate) → shop
+Find it (`orders` → the rental row's `orderId`, current total; disambiguate) → shop
 the new terms at the SAME vendor (`shop_rentals {vendors:[that chain], …}`, same `providerCsaId`)
 → when the user (or the customer's email) asked for this specific change, apply it and report the
 delta afterwards ("done — an extra $38.50, new total $166.15; say so if you'd rather revert"); ask
 first only when the change is not what was asked for or the new total is out of proportion (more
-than ~1.5× the old) → `modify_rental` with `orderId`, `legId`, the same vendor, the vehicle codes,
+than ~1.5× the old) → `book_rental` with `orderId`, `legId`, the same vendor, the vehicle codes,
 the new window and `total` = the new all-in total (loyalty number carried through); the server
 re-checks the vendor like a booking, so
 `PRICE_CHANGED` can come back here too → then read `reRated`: if true, the vendor stored a
 different price than the user approved — tell them immediately
-and offer to revert or cancel. Same-vendor only; "switch to National" = `cancel_order` + fresh
-`book_rental`, offered as exactly that with both prices.
+and offer to revert or cancel. Same-vendor only; "switch to National" = `manage_order { action: "cancel" }`
++ a fresh `book_rental`, offered as exactly that with both prices.
 
 ## Cancelling a rental (a car booking)
-`get_existing_orders` → one explicit recap with the confirmation number and "this can't be
-undone" → cancel on a clear yes → `cancel_order(orderId, legId)` — `cancel_order` is the one
+`orders` → one explicit recap with the confirmation number and "this can't be
+undone" → cancel on a clear yes → `manage_order { action: "cancel", orderId, legId }` — the one
 cancel for every order type; the `legId` is optional but lets the server read the reservation
 back and report its new status. Four outcomes: `cancelled: true` is done; `CANCEL_DECLINED` means
 nothing changed and the car is still held; `CANCEL_NOT_FOUND` means no order with that id is
-visible to you — re-read the id from `get_existing_orders`, do not retry; `CANCEL_UNCERTAIN` means
+visible to you — re-read the id from `orders`, do not retry; `CANCEL_UNCERTAIN` means
 the vendor may not have been reached and the car may still be reserved — never say it is
-cancelled; check `get_existing_orders` first.
+cancelled; check `orders` first.
+
+**For history, use `orders` without a leg.** Cars booked over a period, at an airport, for an aircraft
+or for a person - not one leg or visit - come from the history search ([orders.md](orders.md)); its rows
+carry the `orderId` a change or a cancel takes.
 
 ## Ask once, then remember
 Preferences (vendor, class, tolerance, loyalty numbers, pickup-mode habit) live with YOU.
@@ -236,10 +246,10 @@ one question, then book. Two or more missing, or asked for options → present, 
 
 **The driver's email: ask once, never require it.** When the user already said "book",
 book first and mention the missing email after, with the offer to add it. Otherwise, if the
-driver's profile has no email (`hasEmail: false` from `operator_search_travelers` / `get_traveler_profile`),
+driver's profile has no email (`hasEmail: false` from `travelers`),
 ask once before booking - *"Bob has no email on file - want me to add one, so he gets the confirmation?"* - save it with
-`operator_update_traveler { travelerId, email }` (operators) or `fbo_update_traveler { travelerId, email }`
-(an FBO rep, for the customer's crew member from `fbo_search_travelers`), then book. If the user skips it, book anyway and say plainly that
+`manage_traveler { action: "update", travelerId, email }` (for an FBO rep, the customer's crew member from
+`travelers`), then book. If the user skips it, book anyway and say plainly that
 the driver will not get the confirmation email. `GUEST_EMAIL_MISSING` on the booking names a driver
 with a profile and no email; relay it in one sentence. Creating a new driver: ask for the email in
 the same question that confirms the new person.
@@ -287,17 +297,16 @@ the schedule — say so.
 
 ## Operator flow - your own trips and crew
 
-The user books cars for their OWN trips and crew. Your record tools are the
-`operator_*` family (`operator_search_trips`, `operator_search_travelers`,
-`operator_create_traveler`); the marketplace tools (`shop_rentals`, `book_rental`,
-`modify_rental`, `cancel_order`, `get_existing_orders`, `get_traveler_profile`, `search_airports`)
-are shared with FBO reps; `list_fbos` is yours alone (ad-hoc FBO delivery, an FBO choice on a leg).
-You will not see `fbo_*` tools; if a stale list shows one it
+The user books cars for their OWN trips and crew: `operator_trips` finds the trip, `travelers` the
+driver (`manage_traveler` adds one), and `shop_rentals`, `book_rental` (with `orderId` for a change),
+`manage_order` and `orders` work as for every role. `search_airports` lists an airport's FBOs
+(`fbos[]`) when the search resolves to one airport - ad-hoc FBO delivery, an FBO choice on a leg; FBO
+reps never get that list. You will not see `fbo_*` tools; if a stale list shows one it
 refuses an operator with `NOT_FBO_USER`. Shared rules (tools, latency, loyalty, playbook, modify,
 cancel, errors, book-then-offer-to-undo) are in the sections above and apply throughout.
 
 ### Flow
-1. **Find the trip** (`operator_search_trips`; pass the airport if named, or the `tail` when the
+1. **Find the trip** (`operator_trips`; pass the airport if named, or the `tail` when the
    user names an aircraft — schedulers often do). The tool defaults to the next leg **where the
    user is on the manifest**, falling back to the next leg overall (schedulers book for others
    and appear on no manifest). Check `selectionBasis` and treat the choice as a CORRECTABLE
@@ -334,7 +343,7 @@ cancel, errors, book-then-offer-to-undo) are in the sections above and apply thr
    `travelerId` = their `companyPersonId`).
 5. **Choose using the playbook** — the shop's `recommendation` (`autoBookable`) or the checklist in
    "Book, then offer to undo" above; present a menu only when the user asked for options or a
-   blocker stands; **loyalty** per "Loyalty numbers" above (profile first — batch `get_traveler_profile` with the
+   blocker stands; **loyalty** per "Loyalty numbers" above (profile first — batch `travelers` with the
    shop).
 6. **Book directly:** `book_rental` with the `legId`, the chosen row's vendor (`providerCsaId`,
    `chain`), `sippCode`, `vehicleType`, `vehicleCategory`, `vehicleSize`, the window, and `total` =
@@ -349,24 +358,26 @@ When the request doesn't match any upcoming trip — wrong airport, wrong date, 
   Tuesday at CLT" with no CLT/Tuesday trip → *"That's not on your trip list, so I'll set it up as a
   new trip. What pickup and return times, and is it delivered to an FBO or picked up at the main
   terminal?"* — the window is REQUIRED (no trip = no default — never guess dates) and so is the
-  pickup mode. If the request ALREADY names an FBO, drop the pickup-mode question: resolve it via
-  `list_fbos` and name it in the read-back. If the request already carries the window too, there is
+  pickup mode. If the request ALREADY names an FBO, drop the pickup-mode question: resolve it from the
+  airport's `fbos[]` on `search_airports` and name it in the read-back. If the request already carries the window too, there is
   nothing to ask — book.
 - **Driver — the one rule that has bitten:** the driver defaults to the logged-in user, but pass
-  `travelerId` ONLY if that person has a traveler profile: `operator_search_travelers` (or
-  `get_traveler_profile`) must return their `companyPersonId`. The user's own id from
+  `travelerId` ONLY if that person has a traveler profile: `travelers` must return their
+  `companyPersonId`. The user's own id from
   `userIdentity` is a LOGIN id, not necessarily a traveler profile — passing it has failed the
   save AFTER the vendor confirmed. No profile → book name-only (`driverFirstName/LastName`, no
-  `travelerId`) or offer `operator_create_traveler` first (keeps loyalty numbers reusable; ask for
+  `travelerId`) or offer `manage_traveler` action `create` first (keeps loyalty numbers reusable; ask for
   the email in the same question - "I'll create Bob Smith - what's his email, so he gets his
   confirmations?" - optional, never required). A profile with `hasEmail: false`: ask once and save it
-  with `operator_update_traveler`, or book anyway and say the driver gets no confirmation email. If
-  another person is named, `operator_search_travelers` for their profile — exact spelling, Crew vs
+  with `manage_traveler` action `update`, or book anyway and say the driver gets no confirmation email. If
+  another person is named, `travelers` for their profile — exact spelling, Crew vs
   Passenger (`isCrewMember`), `companyPersonId` as `travelerId`. (An operator's travelers all
   belong to the operator, so a name is enough here — unlike an FBO, whose travelers belong to
   customers.)
 - **Resolve the place:** `search_airports` for the `airportId` (confirm if ambiguous — "CLT" also
-  matches SCLT in Chile; pick the obvious one, mention it). FBO delivery → `list_fbos`; if the
+  matches SCLT in Chile; pick the obvious one, mention it). A search that resolves to one airport also
+  carries its FBOs (`fbos[]`, each with its `fboCsaId`), so FBO delivery needs no second call; with
+  several candidates, narrow the search to the one airport (or pass `includeFbos: true`). If the
   user already named the FBO, match it in that list yourself and confirm it in the recap —
   otherwise let the user pick. An `fboCsaId` is REQUIRED before shopping FBO mode (pass
   `fboName` too). Main terminal → no FBO needed.
@@ -382,9 +393,9 @@ When the request doesn't match any upcoming trip — wrong airport, wrong date, 
 
 ### Operator examples
 "Book me a large SUV for my CLT trip, I like Hertz" →
-operator_search_trips("CLT") → context Operator; the leg arrives at Acme Aviation, so NO
+operator_trips("CLT") → context Operator; the leg arrives at Acme Aviation, so NO
 pickup-mode question → shop_rentals(pickupMode:"FBO", vehicleClass:"SUV") +
-get_traveler_profile(driver) in one block → Hertz Pathfinder $186 all-in; National Tahoe
+travelers(driver) in one block → Hertz Pathfinder $186 all-in; National Tahoe
 $169 (9% less — inside your usual 10%, so Hertz stands) → "Hertz Gold on file ends 4821 — use
 it?" → recap (dates from suggestedRentalWindow, delivery to Acme Aviation — correctable,
 payment sentence, duplicate check) → book_rental(legId, Hertz providerCsaId, sippCode IFAR,
@@ -392,15 +403,15 @@ vehicleType, window, total 186.00) → read back the confirmation (and `priceImp
 re-check found it cheaper).
 
 AD-HOC: "I want to rent a car for Bob Smith on Tuesday at CLT" →
-operator_search_trips("CLT") → no match → "This seems like a new trip — it's not on your
+operator_trips("CLT") → no match → "This seems like a new trip — it's not on your
 current trip list. What pickup and return dates and times would you like Bob's car, and is this
-delivered to an FBO or picked up at the main terminal?" → operator_search_travelers("Smith") (Bob is Crew
-→ isCrewMember true, companyPersonId → travelerId) → search_airports("CLT") → user said FBO →
-list_fbos(airportId), user picks Acme Aviation → shop_rentals(airportId, fboCsaId,
+delivered to an FBO or picked up at the main terminal?" → travelers("Smith") (Bob is Crew
+→ isCrewMember true, companyPersonId → travelerId) → search_airports("CLT") → one airport, with its
+`fbos[]` → user said FBO, picks Acme Aviation from that list → shop_rentals(airportId, fboCsaId,
 pickupMode:"FBO", dates — NO legId) → playbook, loyalty, recap ("this creates a Book Now
 itinerary on your trip list") → book_rental (no legId, fboCsaId + fboName) → read back the vendor
 confirmation + the new itinerary.
 
 AD-HOC, SELF: "I need a car at TEB tomorrow, just me" → no TEB trip → confirm window + pickup
-mode → operator_search_travelers(user's name): no profile → book NAME-ONLY (no travelerId), offer
-to create a traveler profile for next time (`operator_create_traveler`).
+mode → travelers(user's name): no profile → book NAME-ONLY (no travelerId), offer
+to create a traveler profile for next time (`manage_traveler` action `create`).

@@ -1,6 +1,6 @@
 ---
 name: "flightbridge-fbo"
-description: "FlightBridge for FBOs: for FBO customer service reps using the FlightBridge connector. Put a visiting aircraft on the schedule ('N1234 is arriving Tuesday', 'Acme is bringing a Citation in Thursday, they want fuel and a hangar'), find, edit, cancel, discard or archive a visit, set checklist items, fuel, pull-up time and crew/passenger counts, email the customer their reservation details; answer 'what hotels do you recommend?' and 'what cars can you get me?' from the location's rate card; shop and book hotel rooms and rental cars for a visiting crew ('find the crew of Wednesday's arrival a hotel', 'walk-in N2345, they want an SUV'), with the FBO's negotiated rates, free-cancellation deadlines, all-in prices and restricted rates; and send the secure card link so the visiting operator's card goes on file. Requires the FlightBridge connector."
+description: "FlightBridge for FBOs: for FBO customer service reps using the FlightBridge connector. Put a visiting aircraft on the schedule ('N1234 is arriving Tuesday', 'Acme is bringing a Citation in Thursday, they want fuel and a hangar'), find, edit, cancel, discard or archive a visit, set checklist items, fuel, pull-up time and crew/passenger counts, email the customer their reservation details; look up order history; answer 'what hotels do you recommend?' and 'what cars can you get me?' from the location's rate card; shop and book hotel rooms and rental cars for a visiting crew ('find the crew of Wednesday's arrival a hotel', 'walk-in N2345, they want an SUV'), with the FBO's negotiated rates, free-cancellation deadlines, all-in prices and restricted rates; and send the secure card link so the visiting operator's card goes on file. Requires the FlightBridge connector."
 ---
 
 # FlightBridge for FBOs
@@ -22,17 +22,18 @@ anything else, because this skill can do nothing without it.
 |---|---|
 | a visit itself: put an aircraft on the schedule, find, edit, cancel, discard, archive, checklist, fuel, email the customer | [visits.md](visits.md) |
 | "what hotels do you recommend?", "what cars can you get?", a price for one date - quick answers | [rate-card.md](rate-card.md) |
-| a hotel room for a visiting crew: shop, book, cancel | [hotels.md](hotels.md) (worked examples in [hotel-examples.md](hotel-examples.md)) |
+| a hotel room for a visiting crew: shop, book, change, cancel | [hotels.md](hotels.md) (worked examples in [hotel-examples.md](hotel-examples.md)) |
 | a rental car for a visiting crew, with or without a reservation (walk-ins) | [rentals.md](rentals.md) |
+| order history: what was booked over a period, by type, for an aircraft or a person | [orders.md](orders.md) |
 | a booking needs a card that is not on file, or a question about a card | [card-link.md](card-link.md) |
 
 **Start with the cheapest call that answers the request.**
 - A **reservation / customer visit** request — "put them on the schedule", "they want fuel and a hangar",
   "what have I got for Acme this week", "cancel Thursday's visit" — is [visits.md](visits.md), not a rental request:
-  go straight to `fbo_create_reservation` (or `fbo_search_reservations` to find one). One call. The car or
-  room, if there is one, comes after.
+  go straight to `fbo_manage_reservation { action: "create" }` (or `fbo_reservations` to find one). One call.
+  The car or room, if there is one, comes after.
 - A **room or car for a named tail** ("N5678", "the customer", "their reservation") →
-  `fbo_search_reservations(tail)` first (the FBO schedule, ~0.4 s; no airport needed — a tail search
+  `fbo_reservations(tail)` first (the FBO schedule, ~0.4 s; no airport needed — a tail search
   covers every location). Shop from the row (`reservationId`, `arrivalLegId`). Nothing on the schedule for
   that tail → the visit is not booked yet: [rentals.md](rentals.md) flow B for a car now, or [visits.md](visits.md) when the
   caller wants the visit itself.
@@ -43,8 +44,7 @@ The CSR does not book for their own fleet. They book for a **visiting aircraft**
 their field. Everything on the booking is *someone else's* data that the FBO keeps a record of:
 - **Reservation** = the visiting aircraft's arrival/departure on the FBO's schedule. It IS a
   trip + legs underneath (a GUID reservation), so a booking attaches to its `arrivalLegId` like
-  any leg — say "reservation", not "trip". `fbo_search_reservations` / `fbo_get_reservation` find
-  it.
+  any leg — say "reservation", not "trip". `fbo_reservations` finds it.
 - **Customer** = the visiting operator / aircraft owner as the FBO has it on file (each FBO
   keeps its OWN customer and aircraft lists). Say "customer" or "the operator".
 - **Aircraft / tail** = how a CSR identifies everything. Tail search ignores case, hyphens and a
@@ -97,32 +97,42 @@ This skill is for FBO staff. If responses carry `context: "Operator"`, the user'
 aircraft operator's: say once that the "FlightBridge for Aircraft Operators" skill is the one written
 for their account, and carry on with the server's instructions.
 
-### The tool families — prefixed tools are YOUR RECORDS, unprefixed tools are the marketplace
+### The tools - read with the noun, change with `manage_*`
 
-You only see the tools for your role (the server filters the list by persona), so every tool in
-your list is yours to use. The prefix still tells you what kind of thing a tool touches:
-- **`fbo_*`** — an FBO customer service rep's own records about VISITING aircraft:
-  `fbo_search_reservations`, `fbo_get_reservation`, `fbo_create_reservation`,
-  `fbo_update_reservation`, `fbo_update_checklist`, `fbo_cancel_reservation` (cancel or reinstate
-  — reversible), `fbo_discard_reservation` (permanent), `fbo_archive_reservation` (file / unfile),
-  `fbo_email_reservation` (the customer's confirmation email — preview, then `confirm`),
-  `fbo_search_customers`, `fbo_search_aircraft`, `fbo_create_aircraft`, `fbo_create_customer`,
-  `fbo_search_travelers` (always inside a customer), `fbo_create_traveler`, `fbo_update_traveler` (an
-  email or phone on one of your customers' travelers), `fbo_rate_card` (the location's rate card, cache
-  only). `request_card` / `card_request_status` (`fbo_request_card` / `fbo_card_request_status` are
-  frozen aliases) return a secure link to put a card on file - a card number is never typed into the chat.
-- You will not see the `operator_*` tools (an aircraft operator's trips and travelers): they read the
+Each kind of record has one tool that reads it, named for the thing (`orders`, `travelers`), and one that
+changes it, `manage_<thing>`, which takes an `action` naming the change: `manage_order { action: "cancel",
+orderId }`. **Read with the noun tool; to change something, call its `manage_*` tool and say which action.**
+Booking keeps its own verbs: `shop_hotels`, `get_hotel`, `book_hotel`, `shop_rentals`, `book_rental`.
+
+You only see the tools for your role (the server filters the list by persona), so every tool in your list
+is yours to use. A prefix marks a record only your role keeps:
+- **Your schedule:** `fbo_reservations` (find visits, or one in full by `reservationId`) and
+  `fbo_manage_reservation`, actions `create`, `update`, `checklist`, `cancel` (cancel or reinstate -
+  reversible), `discard` (permanent), `archive` (file / unfile) and `email` (the customer's reservation
+  email - preview, then `confirm`) ([visits.md](visits.md)).
+- **Your customers and their aircraft:** `fbo_customers` (by `tail`, `name` or `customerId`) and
+  `fbo_manage_customer`, actions `create_customer` and `create_aircraft`.
+- **The rate card:** `fbo_rate_card` (the location's rate card, cache only).
+- You will not see the `operator_*` tools (an aircraft operator's trips and aircraft): they read the
   operator trip board, not the FBO schedule, and the server refuses them with `WRONG_PERSONA_TOOL` +
   `useInstead`.
-- **Unprefixed — the marketplace**, the same for both roles: `shop_hotels`, `get_hotel`, `book_hotel`,
-  `shop_rentals` (every vendor, or `vendors:[one]` to re-price a single vendor — a vendor that is not at
-  that location answers `VENDOR_NOT_AT_LOCATION` naming the chains that are, so offer those rather than
-  "no cars"; `includeHours` for hours and staging; `returnAirport` for one-way stations), `book_rental`,
-  `modify_rental`, `cancel_order` (any order), `get_existing_orders` (any order — scoped by
-  `legId`, `reservationId` or `travelerName`, one of which is required: `SCOPE_REQUIRED` — "Pat
-  Tester's bookings"), `get_traveler_profile` (loyalty numbers on file), `search_airports`.
-  `list_fbos` (the FBOs at an airport) is the **operator's** only: an FBO rep's own locations are
-  `me.bases`, and the `fbo_*` tools and the shops take `airportCode` or `fboCsaId` matched against them.
+
+The rest are the same for both roles:
+- **Crew and passengers:** `travelers` (always inside a customer: pass `customerId` or `reservationId`)
+  and `manage_traveler`, actions `create` and `update` (an email or phone on one of your customers'
+  travelers).
+- **Orders:** `orders` (what is on one leg or visit, or the order history - [orders.md](orders.md)) and
+  `manage_order`, action `cancel` for any order.
+- **Cards:** `request_card` / `card_request_status` return a secure link to put a card on file - a card
+  number is never typed into the chat ([card-link.md](card-link.md)).
+- **Booking:** `shop_hotels`, `get_hotel`, `book_hotel` (with `replacesOrderId` it rebooks: new dates,
+  another guest or another room), `shop_rentals` (every vendor, or `vendors:[one]` to re-price a single
+  vendor — a vendor that is not at that location answers `VENDOR_NOT_AT_LOCATION` naming the chains that
+  are, so offer those rather than "no cars"; `includeHours` for hours and staging; `returnAirport` for
+  one-way stations) and `book_rental` (with `orderId` it changes a booked car).
+- **Airports:** `search_airports`, for an airport that is not one of yours. It never lists FBOs for an
+  FBO rep: your own locations are `me.bases`, and the `fbo_*` tools and the shops take `airportCode` or
+  `fboCsaId` matched against them.
 
 If a stale client ever shows you a tool from the other role, the server refuses it with
 `WRONG_PERSONA_TOOL` and `useInstead` — call that tool, and do not treat the refusal as "no data".
@@ -157,8 +167,8 @@ operator's trips on the trip board. If you guessed wrong, the first tool call te
 ### Safety and confirmation - the rules that never bend
 
 - **Looks are free; bookings are real.** `shop_hotels`, `get_hotel`, `shop_rentals`, `fbo_rate_card` and
-  the searches sell nothing. `book_hotel`, `book_rental`, `modify_*`, `cancel_order` and every create,
-  cancel, discard and email act for real. Book without asking only when every condition in the booking
+  the reads sell nothing. `book_hotel` and `book_rental` (a rebook or a change too) act for real, and so
+  does every `manage_*` action: each create, change, cancel, discard, delete and email. Book without asking only when every condition in the booking
   checklist ([hotels.md](hotels.md) Step 9, [rentals.md](rentals.md) "Book, then offer to undo") holds; otherwise recap and get a yes.
 - **Cancelling a booking is confirm-first**: recap (what, who, dates, confirmation) and get a clear yes.
   Cancelling a visit is reversible and needs no yes; discarding one is permanent and does (`visits.md`).
