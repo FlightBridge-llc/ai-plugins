@@ -27,6 +27,7 @@ without it.
 | the company's aircraft: which ones, add, change, delete, the owner one flies for | [aircraft.md](aircraft.md) |
 | an airline ticket for a crew member or passenger: search, book, status, void or cancel | [air.md](air.md) |
 | a schedule, a leg checklist or a rollup: what is done, change a status, the leg, trip or text notes | [schedules.md](schedules.md) |
+| catering for a leg from a caterer: who caters there, the menu, order, change, cancel; a traveler's catering preferences | [catering.md](catering.md) |
 | a booking needs a card that is not on file, or a question about a card | [card-link.md](card-link.md) |
 
 **Start with the cheapest call that answers the request.** An operator's own trip ("my trip", "the crew",

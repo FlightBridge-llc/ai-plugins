@@ -70,10 +70,13 @@ Every argument is optional. Send everything the user said in one call.
   and `links.trip.markdown` in place of the trip.
   No separate link column; a row without `links` is plain text.
 - A history row names the traveler by name only and carries the `orderId`. For one order's full
-  detail (a hotel's terms, a car's class), read the leg's or visit's orders.
+  detail, read it by id: `orders { orderId }` works for every type (a hotel's terms, a car's class,
+  an FBO notification, a catering order's items and the caterer's status, an airline ticket and what
+  can still be undone).
 
 ## Acting on a row
 
 The row's `orderId` is what every change takes: `manage_order { action: "cancel", orderId }` (recap and
 a yes first, [hotels.md](hotels.md) Step 10 and [rentals.md](rentals.md)), `book_hotel { replacesOrderId }`
-for a hotel rebook (hotels.md Step 11) and `book_rental { orderId }` for a car change.
+for a hotel rebook (hotels.md Step 11), `book_rental { orderId }` for a car change and
+`book_catering { orderId }` for a catering change ([catering.md](catering.md)).

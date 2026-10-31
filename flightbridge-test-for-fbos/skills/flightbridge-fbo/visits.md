@@ -91,6 +91,8 @@ these are they asking for — fuel, hangar, lav, catering, hotel, rental car?") 
 **one** `fbo_manage_reservation` action `checklist` call.
 - **Not Started** = the FBO is providing it. **Operator Arranged** = they arranged it themselves
   and the FBO need not. Those two carry the whole distinction; say them in those words.
+- To order the catering from a caterer, use `book_catering { reservationId }` ([catering.md](catering.md)).
+  The order is filed under the visit's Catering item, so it shows on the FBO schedule.
 - A note goes under the item (`note`), up to 2000 characters.
 - `CHECKLIST_ITEM_UNKNOWN` returns `available` — offer those names rather than guessing again.
   `CHECKLIST_ITEM_AMBIGUOUS` means the name is on both legs; ask arrival or departure.

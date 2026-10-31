@@ -5,8 +5,8 @@ aircraft, or home after the last leg. Training trips are the other common case; 
 operator's own call. Air must be switched on for the company in FlightBridge: if it is not, every air
 tool answers `AIR_NOT_ENABLED` and the user's administrator can ask FlightBridge to enable it.
 
-Five tools: **`air_search`**, **`air_itinerary`** and **`air_order`** read; **`book_air`** books;
-**`manage_air_order`** voids or cancels. One traveler per search and per booking.
+Four tools: **`air_search`** and **`air_itinerary`** read; **`book_air`** books;
+**`manage_air_order`** voids or cancels. An airline order is read with **`orders { orderId }`**. One traveler per search and per booking.
 
 ## Searching - `air_search`
 
@@ -78,10 +78,10 @@ book_air { itineraryKey: "...", travelerId: 81908, legId: 146501, purpose: "to_t
   next time. Never guess a gender or a date of birth.
 - **Loyalty, Known Traveler and redress numbers** come from the profile; a number the user gives wins.
 - **After booking** the reply says the booking is **confirmed and queued for ticketing**. The e-ticket
-  number usually follows within about 10 minutes: check with `air_order`. Never quote a ticket number
+  number usually follows within about 10 minutes: check with `orders { orderId }`. Never quote a ticket number
   the reply does not have.
 - `PRICE_CHANGED`: quote the new total and book only if the user agrees. `BOOKING_UNCERTAIN`: it is not known
-  whether a ticket was booked; never book again, read `air_order` or `orders { orderType: "air" }` first.
+  whether a ticket was booked; never book again, read `orders { orderId }` or `orders { orderType: "air" }` first.
   `PRODUCTION_GDS_BLOCKED`: airline booking is not available in this environment; say exactly that.
 - With `legId` and `purpose` the order is filed under that trip leg, so it shows on the trip.
 - **What the flight is for.** A booking needs a `purpose`. A search from a trip leg already carries it. After a
@@ -90,9 +90,9 @@ book_air { itineraryKey: "...", travelerId: 81908, legId: 146501, purpose: "to_t
 - **Phone and email.** The airline gets the traveler's phone and email from the profile. When one is missing the
   reply asks; pass it as `phone` or `email` and it is saved to the profile.
 
-## The order - `air_order`
+## The order - `orders { orderId }`
 
-`air_order { orderId }` gives the status in words (confirmed and queued for ticketing, ticketed, under
+`orders { orderId }` gives the status in words (confirmed and queued for ticketing, ticketed, under
 review, cancelled, voided), the record locator, the e-ticket once issued, the segments, the totals with the
 booking fee and the card label. `eligibility` says what can be done now: `canVoid` with `voidUntilCentral`,
 or `canCancel` with what cancelling means (`cancelOutcome`). Each row links to the order page, the receipt
@@ -101,7 +101,7 @@ period are `orders { orderType: "air" }` ([orders.md](orders.md)).
 
 ## Undoing a booking - `manage_air_order`
 
-Read `air_order` first; its `eligibility` decides which word applies.
+Read `orders { orderId }` first; its `eligibility` decides which word applies.
 
 - **Void** (`action: "void"`) inside the airline's no-cost window: the fare comes back. The window runs
   to 11:59 PM Central a few days after ticketing and never past the end of the departure day.
