@@ -26,6 +26,7 @@ anything else, because this skill can do nothing without it.
 | a rental car for a visiting crew, with or without a reservation (walk-ins) | [rentals.md](rentals.md) |
 | order history: what was booked over a period, by type, for an aircraft or a person | [orders.md](orders.md) |
 | catering for a visit from a caterer: who caters here, the menu, order, change, cancel | [catering.md](catering.md) |
+| alerts: a changed or cancelled visit or a vendor's answer on an order; fix, clear or set a standing rule | [alerts.md](alerts.md) |
 | a booking needs a card that is not on file, or a question about a card | [card-link.md](card-link.md) |
 
 **Start with the cheapest call that answers the request.**

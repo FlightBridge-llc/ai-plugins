@@ -192,7 +192,8 @@ Then call again with `confirm: true` and `ordersAction`:
   cancelled." Say the orders are still booked.
 
 An **FBO notification** on the leg is listed among the orders ("FBO notification to Acme Aviation
-(Requested)"): `cancel` sends that FBO a cancellation notice; it cannot be moved. A catering order
+(Requested)"): `cancel` sends that FBO a cancellation notice; it cannot be moved. After a leg changes,
+FlightBridge raises alerts on its orders; read and fix them with `alerts` ([alerts.md](alerts.md)). A catering order
 is cancelled with `manage_order { action: "cancel", orderId }` ([catering.md](catering.md)) before the
 leg. Other orders cannot be cancelled or moved here: `ORDERS_MAY_NEED_ATTENTION` names them - they are
 cancelled in FlightBridge, or the user chooses `leave`. Cancelling the last live leg

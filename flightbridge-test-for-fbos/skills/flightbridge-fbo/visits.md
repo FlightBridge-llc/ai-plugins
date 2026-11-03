@@ -93,6 +93,7 @@ these are they asking for — fuel, hangar, lav, catering, hotel, rental car?") 
   and the FBO need not. Those two carry the whole distinction; say them in those words.
 - To order the catering from a caterer, use `book_catering { reservationId }` ([catering.md](catering.md)).
   The order is filed under the visit's Catering item, so it shows on the FBO schedule.
+- When a visit changes, FlightBridge raises alerts on its orders; read and fix them with `alerts` ([alerts.md](alerts.md)).
 - A note goes under the item (`note`), up to 2000 characters.
 - `CHECKLIST_ITEM_UNKNOWN` returns `available` — offer those names rather than guessing again.
   `CHECKLIST_ITEM_AMBIGUOUS` means the name is on both legs; ask arrival or departure.
