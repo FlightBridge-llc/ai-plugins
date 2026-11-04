@@ -115,6 +115,11 @@ on their own, `shop_rentals {vendors:["Hertz"], includeHours:true}`). The server
   `NO_OPEN_DAY_IN_RANGE` — closed the day before too) → offer `nextOpenPickupLocalHuman`, or compare
   vendors with `includeHours`. `hoursUnknown` / `HOURS_UNAVAILABLE` → say the hours could not be
   checked. `avisRule` (Avis/Budget, only inside 18 h) is advisory: mention it, it never blocks.
+- A return outside hours at Enterprise, National or Alamo: those hours are FlightBridge's record of
+  the station (`hoursSource: "flightbridgeRecord"`), and the rental company checks the return against
+  its own schedule when booking. Offer `staging.suggestedBookingReturnLocal`, a return before the
+  station closes that day; `laterReturnLocal` (the next opening) may be refused. `RETURN_HOURS_REFUSED`
+  means the company refused the return time and nothing was reserved: offer the earlier return.
 
 ## Car photos
 

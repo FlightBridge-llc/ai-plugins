@@ -89,7 +89,8 @@ cheapest** qualifying rate is chosen instead, best tier first. The chosen rate i
 **`bestRates.selected`**; the row's **`selection`** says why (`tieBreak` names the cheaper rate it
 beat).
 
-Narrowing, in the order people ask for it: `chain` (prefers it; `chainOnly: true` filters),
+Narrowing, in the order people ask for it: `chain` (prefers it; `chainOnly: true` filters; a brand
+name such as "SpringHill Suites" or a family such as "Marriott" works as well as a chain code),
 `maxRate` (nightly), `radiusMiles`, `maxRows` (default 10, max 25). `includeUnbookable: true`
 keeps properties with no rooms — only when the user asks what exists rather than what is free.
 
