@@ -77,6 +77,23 @@ name such as "SpringHill Suites" or a family such as "Marriott" works as well as
 `maxRate` (nightly), `radiusMiles`, `maxRows` (default 10, max 25). `includeUnbookable: true`
 keeps properties with no rooms — only when the user asks what exists rather than what is free.
 
+**A specific hotel by name is `hotelName`, never `chain`.** "Prices at the Bedford Village Inn" →
+`shop_hotels { airportCode, checkIn, nights, hotelName: "Bedford Village Inn" }`: FlightBridge's hotels
+within `radiusMiles` (default 50) whose name contains it, the same match as the web search's
+"Property or Chain Name" box, and every match is priced. A part of the name works ("bedford" finds
+every Bedford hotel). To find one hotel without pricing a list, `get_hotel { hotelName, airport }`:
+one match answers with that hotel and its rates (`resolvedFrom.hotelId` for the next call); several
+answer with `candidates` - ask which one. `HOTEL_NAME_NOT_FOUND` carries `suggestions`, the closest
+names FlightBridge holds there: offer those, do not guess. A brand is `chain`; both together are both
+filters.
+
+**`maxRows` only changes how many rows are shown**, never how many hotels are examined. When the
+user wants to see more hotels, follow **`moreHotels`**: `{next: "hotels", token, remaining,
+nextBatch}` is the next batch of hotels the search has not examined yet, in the same order
+(`shop_hotels { continuationToken: moreHotels.token }`). Say how many remain
+(`paging.candidatesRemaining`; `paging.propertiesExaminedOf` says it in words). One search examines
+at most 48 hotels; past that the summary says so - narrow with a name, a brand or a smaller radius.
+
 The list comes back **already ranked**, and `rankedBy` states the playbook: bookable; with
 `freeCancelUntil`, hotels that meet it before the rest; the chain asked for; within the company's
 thresholds; the selected rate's price; a negotiated tier; distance. **Present it in that order.**
