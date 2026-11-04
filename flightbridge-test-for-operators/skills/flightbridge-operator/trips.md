@@ -94,6 +94,11 @@ These, and nothing else, earn a question before the call:
 - **`CONFIRMATION_REQUIRED` with `DEPARTURE_IN_PAST`**: confirm the date (usually the user meant the
   next occurrence) and call again with the corrected date or `confirm:true`.
 
+An FBO name FlightBridge does not list at that airport does not stop the trip. The leg keeps the
+name as text, FlightBridge maps it later, and `defaultsApplied` names the FBOs that are listed
+there. Read that back and offer one of them if the user wants it set now. A name that matches
+several FBOs still asks which.
+
 ## Reading the trip back
 
 Read the `summary` back; it is written server-side. When the reply carries `links`, end with
@@ -169,6 +174,37 @@ is one `save` with the type.
 - The read-back lists the leg's live orders and `platformAlerts` - the alerts FlightBridge raises on
   them (`LegDateTimeChanged`, `AircraftTailChanged`, ...). Tell the user their hotel or car was NOT
   changed at the vendor; offer a rebook (`book_hotel` with `replacesOrderId`) or a re-shop if the stay no longer fits.
+
+## A trip from a scheduling system
+
+Some companies' trips come whole from their scheduling system. FlightBridge shows them, but the
+scheduling system owns the dates, airports, aircraft and crew. Read the leg's `editableFields`
+before you promise any change:
+
+- every field: a trip made in FlightBridge; change it as above.
+- `arrivalFbo` and `departureFbo` only: the scheduling system does not send FBOs, so the FBO on each
+  leg can be chosen here and nothing else. `tripSource.name` says which system it is.
+- empty: the scheduling system owns everything, the FBOs included. It is changed there.
+
+`me.tripSource` says the same for the company's trips in general, so you can tell the user early
+("your trips come from your scheduling system; you can choose the FBOs here").
+
+To choose an FBO: `operator_manage_trip` action `update_leg` with `changes.arrivalFbo` or
+`changes.departureFbo` only (an `fboCsaId` from `search_airports`, a name, or `favorite`). A leg
+with no FBO may carry `fboSuggestion`, the company's favourite FBO at that field; offer it first.
+In `search_airports`, the favourite has `favorite: true`.
+
+- The first call previews and asks one question. Read it as it is: the old and new FBO, the
+  stop's other leg when it changes too (the arrival FBO of one leg is the departure FBO of the next
+  when they share the field), and any order that still names the old FBO. Then call again with
+  `confirm: true`.
+- The choice is marked as set in FlightBridge, so the scheduling system's next update keeps it.
+- Any other field in the same call is refused and nothing changes, the FBO included.
+- `TRIP_SAVE_UNCERTAIN` means FlightBridge took the change but has not shown it yet. Read the trip
+  again in a minute; never send the change twice.
+- After the change, FlightBridge raises alerts on orders tied to the old FBO ([alerts.md](alerts.md)).
+  The reply's `followUps` offers the next step: cancel the notice to the old FBO and notify the new
+  one, or notify the new FBO when there was no notice. Ask its question; do it only on a yes.
 
 ## Cancelling
 
@@ -247,6 +283,7 @@ cancellation notice.
 | `FBO_NOT_AT_AIRPORT` / `NO_FBO_AT_AIRPORT` | that FBO is not listed there; offer `options` (or the airport's `fbos[]` from `search_airports`) |
 | `FBO_NO_EMAIL` | FlightBridge has no e-mail for that FBO; it is added in FlightBridge, or the user calls them |
 | `FBO_NOTICE_IN_FLIGHT` | FlightBridge is still sending the last notice; try again in about a minute |
+| `LEG_FBO_REQUIRED` | the leg comes from a scheduling system and has no FBO on that side, and its FBOs are set there; say so. When the FBO can be chosen here, notifying chooses it first by itself (the one named, else the company's favourite, else the airport's only FBO) and the reply says both steps |
 | `tripSharing` | read it, never act on it: a notification sent here is not governed by the company's trip-sharing settings |
 
 ## Refusals and uncertain saves
@@ -254,7 +291,7 @@ cancellation notice.
 | answer | say |
 |---|---|
 | `ROLE_REQUIRED` | the user needs the Trip Manager role; an administrator grants it in FlightBridge |
-| `TRIP_NOT_EDITABLE` (`notFlightBridgeSourced`) | "This trip comes from an import or another integration, so it has to be changed there - a change here would be overwritten." |
+| `TRIP_NOT_EDITABLE` (`notFlightBridgeSourced`) | read `message`: it names the system the trip comes from, and `editableFields` says what can still be changed here (often the FBOs) |
 | `TRIP_NOT_EDITABLE` (`pilotTrip`, `legCancelled`, `outsideBoardWindow`) | read `message` |
 | `EVENT_NOT_SUPPORTED` | it is a calendar event, changed in FlightBridge |
 | `TRIP_NOT_FOUND` | not among the company's trips: re-read the id from `operator_trips` |

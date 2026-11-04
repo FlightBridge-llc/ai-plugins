@@ -204,7 +204,10 @@ back and report its new status. Four outcomes: `cancelled: true` is done; `CANCE
 nothing changed and the car is still held; `CANCEL_NOT_FOUND` means no order with that id is
 visible to you — re-read the id from `orders`, do not retry; `CANCEL_UNCERTAIN` means
 the vendor may not have been reached and the car may still be reserved — never say it is
-cancelled; check `orders` first.
+cancelled; check `orders` first. On `cancelled: true` the rental company has accepted the
+cancellation. FlightBridge then leaves the order's vendor status at "Confirmed" on purpose, and
+the rental company sends no separate cancellation number: read `vendorStatusNote` so nobody waits
+for that field to change.
 
 **For history, use `orders` without a leg.** Cars booked over a period, at an airport, for an aircraft
 or for a person - not one leg or visit - come from the history search ([orders.md](orders.md)); its rows

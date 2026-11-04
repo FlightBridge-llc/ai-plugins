@@ -99,8 +99,9 @@ answer.
 ## 9. Refusals
 
 - Another company's trip: `TRIP_NOT_FOUND`, for read, add, update and both cancels.
-- An imported trip of the user's own company: `TRIP_NOT_EDITABLE`, `reason: notFlightBridgeSourced` - "comes from an
-  import or another integration, not from FlightBridge, so it must be changed in the system it came from".
+- An imported trip of the user's own company: `TRIP_NOT_EDITABLE`, `reason: notFlightBridgeSourced`. The message names
+  the scheduling system. When `editableFields` lists the FBOs, offer to choose the FBO instead: "The trip comes from your
+  scheduling system, so I can't move it here, but I can set the FBO on that leg. Your favourite at TEB is the one I'd use."
 - An FBO user forcing a create: `ROLE_REQUIRED`; `operator_manage_trip` is not in an FBO user's list at all.
 
 ## 10. Calendar events

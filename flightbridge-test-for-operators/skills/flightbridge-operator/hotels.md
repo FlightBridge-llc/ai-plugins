@@ -618,7 +618,11 @@ leg's or visit's hotel row, or a history search with `orderType: "hotel"`). **Re
   cancels without asking, as before.
 - **`cancelled`** — done; quote the `cancellationNumber`. It can differ from the confirmation
   number, so never read one as the other. The confirmation number is `confirmationNumber` on each
-  booked room.
+  booked room. Some hotels return the same number as the confirmation; the summary says so. A
+  number such as LATECANCEL is the hotel's own cancellation number for a cancel inside the penalty
+  period: quote it as it is. `penaltyIndicated` means a penalty may apply. The hotel sends no
+  amount with the cancel, so quote `penaltyAtBooking` with its `source` (the hotel's policy text,
+  or the terms stored at booking), or say no amount is known.
 - **`alreadyCancelled`** — nothing else was done.
 - **`CANCEL_DECLINED`** — the room is **still booked**. Say so.
 - **`CANCEL_UNCERTAIN`** — never say it is cancelled. Say what the message says, and check
