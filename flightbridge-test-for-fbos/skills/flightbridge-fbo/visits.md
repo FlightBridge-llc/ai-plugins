@@ -37,9 +37,9 @@ book, then offer the pull-up time, counts and contact.
   CSR before you create.
 - **Contact** — the dispatcher or crew contact: name, phone, email. One is enough to be useful.
   **A first name is enough when they are on file.** `fbo_customers` and
-  `fbo_reservations` carry the operator's `contacts[]` (names, role, hasEmail/hasPhone, lastUsedAt - the day the
+  `fbo_reservations` carry the operator's `contacts[]` (name, role, phone, email, mobile, lastUsedAt - the day the
   contact was last put on a visit here, null until known - and lastVisitDate, the travel date of the latest visit read that
-  names them; never the email or phone themselves). "Susan is the contact" -> pass `contact: { firstName: "Susan" }` to
+  names them). The phone and e-mail are your FBO's own customer records, the same values the customer page shows. "Susan is the contact" -> pass `contact: { firstName: "Susan" }` to
   `fbo_manage_reservation` action `create` - never ask for a last name first. One match is used and the summary reads *"Contact: Susan Brooks
   (on file)."* - read it back; two answer `needs: contact` with the candidates (ask which, then send `contact.personId`); none
   answers `needs: contact.lastName` - ask for the last name, then create.
@@ -208,6 +208,29 @@ treat it with the same weight as a booking.
 - A cancelled reservation may be emailed (`RESERVATION_CANCELLED` is a warning): the template has
   no cancelled wording, so if the point of the email is the cancellation, it has to be in the
   remarks. A discarded one cannot (`RESERVATION_DISCARDED`).
+
+### Who is calling or writing (phone or e-mail)
+
+- **A call comes in:** `fbo_customers { phone }` with the caller's number as received; punctuation, a leading +1 and an
+  extension do not matter. **An e-mail comes in:** `fbo_customers { email }` with the sender's address.
+- **Read a match back as a question, never as a fact:** *"Is this Jane Doe with Acme Jets?"* The summary gives you that
+  sentence. A number can be shared or passed on, so the caller's yes is what identifies them.
+- **Several matches:** read the names and companies and ask which one. The customer with the most recent activity comes first.
+- **No match (`found: false`):** ask for the caller's name and company, then `fbo_customers { name }`. Matching is exact on
+  purpose: there are no near-miss numbers, because naming the wrong person is worse than asking.
+- **`domainMatches`** (e-mail only) are other contacts at the same company e-mail domain. Use them to ask (*"Are you with Acme
+  Jets?"*), never to decide who wrote. A free mailbox provider never produces one.
+- **Record what you learned:** a caller who is on file under a new number gets
+  `fbo_manage_customer { action: "update_contact", customerId, personId, set: { phone } }`. Only what you send changes;
+  `clear: ["mobile"]` blanks a field. A caller who is new to a known customer, once they confirm, gets
+  `action: "add_contact"` with their name and number. `CONTACT_EXISTS` means a contact of that name is already on file:
+  update that one instead.
+- **The whole customer book:** `fbo_customers { page: 1 }` lists every customer in name order, 100 a page, with
+  `hasMore` and `nextPage`. Add `includeContacts: true` for each customer's contacts and aircraft (25 a page). It suits a
+  one-time load; for a single caller, the phone or e-mail lookup is the right call.
+- **For a voice agent:** look the number up at the start of the call. On one match, greet with the question above. On none,
+  ask who is calling and which company. Say a phone number or e-mail address back only when the caller asks, and never to
+  anyone outside your FBO.
 
 ## Guardrails
 - Don't narrate what the tools told you about the user. Never "you're logged in as the FBO
