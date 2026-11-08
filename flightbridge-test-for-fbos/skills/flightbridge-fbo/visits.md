@@ -225,6 +225,9 @@ treat it with the same weight as a booking.
   `clear: ["mobile"]` blanks a field. A caller who is new to a known customer, once they confirm, gets
   `action: "add_contact"` with their name and number. `CONTACT_EXISTS` means a contact of that name is already on file:
   update that one instead.
+- **Remove a contact** only when the user asks (someone left the company, or a contact is on file twice):
+  `fbo_manage_customer { action: "remove_contact", customerId, personId }`. Confirm the name with the user first. Two
+  contacts of the same name answer `CONTACT_AMBIGUOUS` with both: send the `personId` of the one to remove.
 - **The whole customer book:** `fbo_customers { page: 1 }` lists every customer in name order, 100 a page, with
   `hasMore` and `nextPage`. Add `includeContacts: true` for each customer's contacts and aircraft (25 a page). It suits a
   one-time load; for a single caller, the phone or e-mail lookup is the right call.
