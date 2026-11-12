@@ -53,6 +53,10 @@ or owner to the company's list (Setup > Operators in FlightBridge); pass `owner.
 `owners[]` to rename one. A name already on the list is not added twice - the reply says so. The new
 owner is in `owners[]` and can then be set on an aircraft with `save`.
 
+Each owner in `owners[]` has `isSelf`: true for one of the company's own bases or divisions (Setup >
+Operators, "Is <company>"), false for another operator or owner. Set it with `owner.isSelf` on `save_owner`,
+when adding an owner or for one already on the list; leave it out to keep it as it is.
+
 ## Deleting one - action `delete`
 
 - **Company Admins only.** Without that role the call is refused and the refusal names the role - say

@@ -108,7 +108,9 @@ is yours to use. A prefix marks a record only your role keeps:
 
 The rest are the same for both roles:
 - **Crew and passengers:** `travelers` (by name, or a profile by `travelerId`, with loyalty numbers on
-  file) and `manage_traveler`, actions `create` and `update` (an email or phone on an existing profile).
+  file) and `manage_traveler`, actions `create` and `update` (an email or phone on an existing profile; for a
+  crew profile also `travelerNumber`, `homeBase`, `mobile`, `dateOfBirth` and `gender`, each optional, only
+  the ones passed change).
 - **Orders:** `orders` (what is on one leg or visit, or the order history - [orders.md](orders.md)) and
   `manage_order`, action `cancel` for any order.
   Action `move` files a hotel booking under another trip leg.
