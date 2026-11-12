@@ -40,6 +40,17 @@ fee with the price**: `bookingFee` is per ticket and is not refunded once the ti
 `credits` is present the traveler has unused airline credits; mention them, and say that applying one
 to this booking is not available here yet.
 
+## Seats
+
+When seat information is available, each flight in an economy or premium economy search carries `seats`:
+a short `label` in words (for example "Plenty of aisle & window") and an `icon` (`glyph`, and an `svgUrl`
+picture of a window, middle and aisle seat, filled when open). Both are given: show the glyph or icon
+beside each flight when it helps, and use the label as its words. `status` `pending` means call
+**`seat_labels`** with the `seatLabelsToken`; `unavailable` means say the seat map is unavailable, never
+guess. Business and First are not labelled. For one flight's whole cabin, First included, use
+**`seat_map`**: which seats are left, aisle or window, exit rows, extra legroom, paid seats, and how many
+seats are open up front. Seats are information only: a seat cannot be chosen or held while shopping.
+
 ## One itinerary in detail - `air_itinerary`
 
 `air_itinerary { itineraryKey }` re-prices one itinerary now (`priceChanged` says if it moved) and lists
