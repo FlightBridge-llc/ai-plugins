@@ -6,6 +6,7 @@ the work, each with an `action`, and they are listed only for a user with the Tr
 | tool and action | does |
 |---|---|
 | `operator_manage_trip` `create` | the whole trip, every leg, in ONE call |
+| `operator_manage_trip` `create_positioning` | a crew-positioning trip: one crew member travelling to or from the aircraft |
 | `operator_manage_trip` `add_leg` | one more leg on an existing trip |
 | `operator_manage_trip` `update_leg` | change one leg (times, airports, aircraft, FBOs, crew and passengers, the trip's name) |
 | `operator_manage_trip` `cancel_leg` | cancel one leg |
@@ -174,6 +175,32 @@ is one `save` with the type.
 - The read-back lists the leg's live orders and `platformAlerts` - the alerts FlightBridge raises on
   them (`LegDateTimeChanged`, `AircraftTailChanged`, ...). Tell the user their hotel or car was NOT
   changed at the vendor; offer a rebook (`book_hotel` with `replacesOrderId`) or a re-shop if the stay no longer fits.
+
+## Crew-positioning trips
+
+A crew-positioning trip moves ONE crew member to the aircraft, or home after a trip, usually on an
+airline. It has one leg, that one crew member, no passengers and no FBOs. `operator_trips` marks
+it: `tripType` is `crewPositioning`, the leg has `isPlaceholder: true` and
+`placeholderType: "CrewActivity"`, and `positioningTraveler` names the crew member.
+`positioningDirection` is `out` (to the aircraft) or `return` (home), read from the trip's name.
+
+- Hotels and airline tickets for that leg are for the positioning traveller. Do not ask about
+  passengers or FBOs; they do not apply.
+- To make one: `operator_manage_trip` action `create_positioning` with the crew member (`traveler`:
+  a name or a `travelerId`), `from`, `to`, `departLocal` and `arriveLocal` (both local at their own
+  airport), and `aircraft` only when the user names one. `direction` is `out` unless the user says
+  the crew member is going home (`return`).
+- FlightBridge names it "POS" (or "POST" for a return), the traveller number and the local date,
+  and numbers it POS- plus its next trip number. A number the user gives must start with POS-.
+- The reply reads the trip back. Say it as a positioning trip for that crew member, then offer the
+  undo (`cancel_trip`).
+- On a positioning trip, `update_leg` may change the times, the airports, the aircraft and the crew
+  member (remove the old one and add the new one in the same call). Adding a leg, a passenger, a
+  second traveller or an FBO is refused (`POSITIONING_SHAPE`).
+- Other refusals, each said plainly: `POSITIONING_PURPOSE_MISSING` (a company administrator adds a
+  trip purpose with external identifier CrewActivity in Company Admin), `POSITIONING_TRAVELER_NOT_CREW`
+  (the profile is not a crew profile), `POSITIONING_TRAVELER_NUMBER_MISSING` (add the traveller
+  number to the profile first).
 
 ## A trip from a scheduling system
 
